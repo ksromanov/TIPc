@@ -87,7 +87,8 @@ expr:
 | expr; TIMES ; expr { 1 }
 | expr; DIV ; expr { 1 }
 | LPAREN; e = expr; RPAREN { e }
-| IDENT; LPAREN; args; RPAREN { 2 } // function call
+| IDENT; LPAREN; args; RPAREN { 2 } // direct or indirect function call
+| expr; LPAREN; args; RPAREN { 2 }  // definitely indirect function call
 | KALLOC; expr { 3 }
 | AMPERSAND; expr { 4 }
 | TIMES; expr { 6 }
