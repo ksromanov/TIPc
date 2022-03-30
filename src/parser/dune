@@ -1,0 +1,6 @@
+(ocamllex
+ (modules lexer))
+
+(menhir
+ (modules parser)
+ (flags -la 2 -lc 2 --comment --dump-resolved))
