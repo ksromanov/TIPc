@@ -73,16 +73,17 @@ var_list:
 stmt:
 | id = IDENT; ASSIGN; expr; SEMI { id }
 | KOUTPUT expr SEMI { "KOUTPUT" }
+| KERROR expr SEMI { "KERROR" }
 | KIF; LPAREN; expr; RPAREN; 
-  LBRACE; stmt_list RBRACE;
-  KELSE LBRACE; stmt_list ; RBRACE { "if" }
+  stmt KELSE stmt { "if" }
 | KIF; LPAREN; expr; RPAREN; 
-  LBRACE; stmt_list RBRACE { "iff" }
+  stmt { "iff" }
 | KWHILE; LPAREN; expr; RPAREN;
   LBRACE; stmt_list RBRACE { "while" }
 | TIMES; expr; ASSIGN; expr ; SEMI { "indirect" }
 | IDENT DOT IDENT ASSIGN expr ; SEMI { "record access" }
 | LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { "star access" }
+| LBRACE; stmt_list; RBRACE { "block" }
 
 stmt_list:
 | s = stmt; ss = stmt_list { s::ss }
@@ -91,6 +92,7 @@ stmt_list:
 expr_list:
 | e = expr; COMMA; es = expr_list { e::es }
 | e = expr { [e] }
+| { [] }
 
 expr:
 | IDENT {0}
