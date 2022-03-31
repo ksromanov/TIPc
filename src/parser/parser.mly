@@ -42,6 +42,8 @@
 %type <string list> stmt
 %type <string list> vars
 %type <int> expr
+%type <int> record_field
+%type <int list> record_fields
 
 %%
 program:
@@ -50,12 +52,13 @@ program:
 
 func: 
     name = IDENT; LPAREN; a = args; RPAREN;
-    LBRACE; stmt; KRETURN; expr; RBRACE
+    LBRACE; stmt; KRETURN; expr; SEMI; RBRACE
     { List.length a + String.length name }
 
 args:
 | arg = IDENT; COMMA; a = args { arg::a }
 | arg = IDENT { [arg] }
+| { [] }
 
 vars:
 | KVAR; var_list; SEMI { var_list }
@@ -67,7 +70,7 @@ var_list:
 
 stmt:
 | id = IDENT; ASSIGN; expr; SEMI { [id] }
-| KOUTPUT expr { ["KOUTPUT"] }
+| KOUTPUT expr SEMI { ["KOUTPUT"] }
 | s1 = stmt; SEMI; s = stmt { s1 @ s }
 | KIF; LPAREN; expr; RPAREN; 
   LBRACE; stmt RBRACE;
@@ -76,9 +79,10 @@ stmt:
   LBRACE; stmt RBRACE { ["iff"] }
 | KWHILE; LPAREN; expr; RPAREN;
   LBRACE; stmt RBRACE { ["while"] }
-| TIMES; expr; EQUAL; expr ; SEMI { ["indirect"] }
-| IDENT DOT IDENT EQUAL expr ; SEMI { ["record access"] }
-| LPAREN TIMES expr RPAREN DOT IDENT EQUAL expr ; SEMI { ["star access"] }
+| TIMES; expr; ASSIGN; expr ; SEMI { ["indirect"] }
+| IDENT DOT IDENT ASSIGN expr ; SEMI { ["record access"] }
+| LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { ["star access"] }
+| { [] }
 
 expr:
 | IDENT {0}
@@ -87,6 +91,8 @@ expr:
 | expr; MINUS ; expr { 1 }
 | expr; TIMES ; expr { 1 }
 | expr; DIV ; expr { 1 }
+| expr; GREATER ; expr { 1 }
+| expr; EQUAL ; expr { 1 }
 | LPAREN; e = expr; RPAREN { e }
 | IDENT; LPAREN; args; RPAREN { 2 } // direct or indirect function call
 | expr; LPAREN; args; RPAREN { 2 }  // definitely indirect function call
