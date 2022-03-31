@@ -74,12 +74,12 @@ stmt:
 | id = IDENT; ASSIGN; expr; SEMI { id }
 | KOUTPUT expr SEMI { "KOUTPUT" }
 | KIF; LPAREN; expr; RPAREN; 
-  LBRACE; stmt RBRACE;
-  KELSE LBRACE; stmt ; RBRACE { "if" }
+  LBRACE; stmt_list RBRACE;
+  KELSE LBRACE; stmt_list ; RBRACE { "if" }
 | KIF; LPAREN; expr; RPAREN; 
-  LBRACE; stmt RBRACE { "iff" }
+  LBRACE; stmt_list RBRACE { "iff" }
 | KWHILE; LPAREN; expr; RPAREN;
-  LBRACE; stmt RBRACE { "while" }
+  LBRACE; stmt_list RBRACE { "while" }
 | TIMES; expr; ASSIGN; expr ; SEMI { "indirect" }
 | IDENT DOT IDENT ASSIGN expr ; SEMI { "record access" }
 | LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { "star access" }
