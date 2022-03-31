@@ -99,6 +99,7 @@ expr:
 | expr; GREATER ; expr { 1 }
 | expr; EQUAL ; expr { 1 }
 | LPAREN; e = expr; RPAREN { e }
+| KINPUT { 88 }
 | IDENT; LPAREN; expr_list; RPAREN { 2 } // direct or indirect function call
 | expr; LPAREN; expr_list; RPAREN { 2 }  // definitely indirect function call
 | KALLOC; expr { 3 }
