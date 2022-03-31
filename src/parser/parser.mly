@@ -39,7 +39,8 @@
 %start <int list> program
 %type <int> func
 %type <string list> args
-%type <string list> stmt
+%type <string> stmt
+%type <string list> stmt_list
 %type <string list> var_list
 %type <string list list> vars_blocks
 %type <int> expr
@@ -53,7 +54,7 @@ program:
 
 func: 
 |   name = IDENT; LPAREN; a = args; RPAREN;
-    LBRACE; vars_blocks; stmt; KRETURN; expr; SEMI; RBRACE
+    LBRACE; vars_blocks; stmt_list; KRETURN; expr; SEMI; RBRACE
     { List.length a + String.length name }
 
 args:
@@ -70,19 +71,21 @@ var_list:
 | id = IDENT { [id] }
 
 stmt:
-| id = IDENT; ASSIGN; expr; SEMI { [id] }
-| KOUTPUT expr SEMI { ["KOUTPUT"] }
-| s1 = stmt; SEMI; s = stmt { s1 @ s }
+| id = IDENT; ASSIGN; expr; SEMI { id }
+| KOUTPUT expr SEMI { "KOUTPUT" }
 | KIF; LPAREN; expr; RPAREN; 
   LBRACE; stmt RBRACE;
-  KELSE LBRACE; stmt ; RBRACE { ["if"] }
+  KELSE LBRACE; stmt ; RBRACE { "if" }
 | KIF; LPAREN; expr; RPAREN; 
-  LBRACE; stmt RBRACE { ["iff"] }
+  LBRACE; stmt RBRACE { "iff" }
 | KWHILE; LPAREN; expr; RPAREN;
-  LBRACE; stmt RBRACE { ["while"] }
-| TIMES; expr; ASSIGN; expr ; SEMI { ["indirect"] }
-| IDENT DOT IDENT ASSIGN expr ; SEMI { ["record access"] }
-| LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { ["star access"] }
+  LBRACE; stmt RBRACE { "while" }
+| TIMES; expr; ASSIGN; expr ; SEMI { "indirect" }
+| IDENT DOT IDENT ASSIGN expr ; SEMI { "record access" }
+| LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { "star access" }
+
+stmt_list:
+| s = stmt; ss = stmt_list { s::ss }
 | { [] }
 
 expr_list:
@@ -102,16 +105,16 @@ expr:
 | KINPUT { 88 }
 | IDENT; LPAREN; expr_list; RPAREN { 2 } // direct or indirect function call
 | expr; LPAREN; expr_list; RPAREN { 2 }  // definitely indirect function call
-| KALLOC; expr { 3 }
+| KALLOC; e = expr { 3 + e }
 | AMPERSAND; expr { 4 }
 | TIMES; expr { 6 }
 | KNULL { 5 }
-| RBRACE; record_fields; LBRACE { 8 }
+| LBRACE; record_fields; RBRACE { 8 }
 | expr; DOT; IDENT { 9 }
 
 record_fields:
 | f = record_field; COMMA; fs = record_fields { f :: fs }
-| { [] }
+| f = record_field { [f] }
 
 record_field:
 | IDENT; COLON; expr { 8 }
