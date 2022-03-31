@@ -88,6 +88,10 @@ stmt:
 | LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { ["star access"] }
 | { [] }
 
+expr_list:
+| e = expr; COMMA; es = expr_list { e::es }
+| e = expr { [e] }
+
 expr:
 | IDENT {0}
 | n = INT { n }
@@ -98,8 +102,8 @@ expr:
 | expr; GREATER ; expr { 1 }
 | expr; EQUAL ; expr { 1 }
 | LPAREN; e = expr; RPAREN { e }
-| IDENT; LPAREN; args; RPAREN { 2 } // direct or indirect function call
-| expr; LPAREN; args; RPAREN { 2 }  // definitely indirect function call
+| IDENT; LPAREN; expr_list; RPAREN { 2 } // direct or indirect function call
+| expr; LPAREN; expr_list; RPAREN { 2 }  // definitely indirect function call
 | KALLOC; expr { 3 }
 | AMPERSAND; expr { 4 }
 | TIMES; expr { 6 }
