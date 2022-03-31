@@ -45,7 +45,7 @@
 %%
 program:
 | f = func; p = program { f::p }
-| { [] }
+| EOF { [] }
 
 func: 
     name = IDENT; LPAREN; a = args; RPAREN;

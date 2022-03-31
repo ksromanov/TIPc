@@ -8,32 +8,22 @@
 
 let newline = ('\013'* '\010')
 let ws = [' ' '\009' '\012']
-let int_literal = ['0'-'9']*
-let ident = ['a'-'z' 'A'-'Z']+
+let int_literal = ['0'-'9']+
+let ident = ['a'-'z' 'A'-'Z' '_']+
 
 rule token = parse
-  | ws +
-      { token lexbuf }
-  | "alloc"
-      { KALLOC }
-  | "input"
-      { KINPUT }
-  | "while"
-      { KWHILE }
-  | "if"
-      { KIF }
-  | "else"
-      { KELSE }
-  | "var"
-      { KVAR }
-  | "return"
-      { KRETURN }
-  | "null"
-      { KNULL }
-  | "output"
-      { KOUTPUT }
-  | "error"
-      { KERROR }
+  | ws + { token lexbuf }
+  | newline { token lexbuf }
+  | "alloc" { KALLOC }
+  | "input" { KINPUT }
+  | "while" { KWHILE }
+  | "if" { KIF }
+  | "else" { KELSE }
+  | "var" { KVAR }
+  | "return" { KRETURN }
+  | "null" { KNULL }
+  | "output" { KOUTPUT }
+  | "error" { KERROR }
   | '-'? int_literal as i
       { INT (int_of_string i)}
   | "==" { EQUAL }
@@ -51,6 +41,8 @@ rule token = parse
   | ','  { COMMA }
   | '.'  { DOT }
   | '&'  { AMPERSAND }
-  | ident
-      { IDENT ident }
+  | ident as i { IDENT i }
   | eof { EOF }
+  | _ as c
+      { Printf.printf "Unexpected character '%c', code %d, skipping...\n" c (Char.code c);
+        token lexbuf }
