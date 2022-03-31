@@ -44,6 +44,10 @@ rule token = parse
   | '&'  { AMPERSAND }
   | ident as i { IDENT i }
   | eof { EOF }
+  | "//" { eol_comment lexbuf }
   | _ as c
       { Printf.printf "Unexpected character '%c', code %d, skipping...\n" c (Char.code c);
         token lexbuf }
+and eol_comment = parse
+  | '\010' { token lexbuf }
+  | _ { eol_comment lexbuf }
