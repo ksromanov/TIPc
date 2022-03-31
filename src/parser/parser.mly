@@ -40,8 +40,8 @@
 %type <int> func
 %type <string list> args
 %type <string list> stmt
-%type <string list> vars
 %type <string list> var_list
+%type <string list list> vars_blocks
 %type <int> expr
 %type <int> record_field
 %type <int list> record_fields
@@ -53,10 +53,7 @@ program:
 
 func: 
 |   name = IDENT; LPAREN; a = args; RPAREN;
-    LBRACE; vars; stmt; KRETURN; expr; SEMI; RBRACE
-    { List.length a + String.length name }
-|   name = IDENT; LPAREN; a = args; RPAREN;
-    LBRACE; stmt; KRETURN; expr; SEMI; RBRACE
+    LBRACE; vars_blocks; stmt; KRETURN; expr; SEMI; RBRACE
     { List.length a + String.length name }
 
 args:
@@ -64,9 +61,9 @@ args:
 | arg = IDENT { [arg] }
 | { [] }
 
-vars:
-| KVAR; vars = var_list; SEMI { vars }
-| { [] } 
+vars_blocks:
+| KVAR; vars = var_list; SEMI  vbs = vars_blocks { vars :: vbs }
+| { [] }
 
 var_list:
 | id = IDENT; COMMA; vars = var_list { id :: vars }
