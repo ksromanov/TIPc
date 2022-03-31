@@ -24,8 +24,7 @@ rule token = parse
   | "null" { KNULL }
   | "output" { KOUTPUT }
   | "error" { KERROR }
-  | '-'? int_literal as i
-      { INT (int_of_string i)}
+  | int_literal as i { INT (int_of_string i)}
   | "==" { EQUAL }
   | "="  { ASSIGN }
   | ">"  { GREATER }

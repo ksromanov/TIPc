@@ -97,6 +97,7 @@ expr:
 | n = INT { n }
 | expr; PLUS ; expr { 1 }
 | expr; MINUS ; expr { 1 }
+| MINUS; n = INT { -n }
 | expr; TIMES ; expr { 1 }
 | expr; DIV ; expr { 1 }
 | expr; GREATER ; expr { 1 }
