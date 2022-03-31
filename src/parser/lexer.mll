@@ -32,6 +32,7 @@ rule token = parse
   | '+'  { PLUS }
   | '-'  { MINUS }
   | '*'  { TIMES }
+  | "/*" { multi_line_comment lexbuf }
   | '/'  { DIV }
   | '('  { LPAREN }
   | ')'  { RPAREN }
@@ -51,3 +52,6 @@ rule token = parse
 and eol_comment = parse
   | '\010' { token lexbuf }
   | _ { eol_comment lexbuf }
+and multi_line_comment = parse
+  | "*/" { token lexbuf }
+  | _ { multi_line_comment lexbuf }
