@@ -1,9 +1,12 @@
-(* Draft version of TIP language lexer *)
+(* TIP (Tiny Imperative Programming Language) lexer.
+   Fully passes examples in https://github.com/cs-au-dk/TIP
+   as of 31 March 2022.
+
+   Does not support nested multiline comments. *)
 {
   open Parser
 
   exception Error of string
-
 }
 
 let newline = ('\013'* '\010')
