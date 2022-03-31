@@ -9,7 +9,7 @@
 let newline = ('\013'* '\010')
 let ws = [' ' '\009' '\012']
 let int_literal = ['0'-'9']+
-let ident = ['a'-'z' 'A'-'Z' '_']+
+let ident = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '_' '0'-'9']*
 
 rule token = parse
   | ws + { token lexbuf }
