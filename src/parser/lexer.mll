@@ -27,6 +27,7 @@ rule token = parse
   | '-'? int_literal as i
       { INT (int_of_string i)}
   | "==" { EQUAL }
+  | "="  { ASSIGN }
   | ">"  { GREATER }
   | '+'  { PLUS }
   | '-'  { MINUS }

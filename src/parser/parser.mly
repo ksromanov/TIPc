@@ -30,6 +30,7 @@
 %token COMMA
 %token DOT
 %token EQUAL
+%token ASSIGN
 %token LBRACE
 %token RBRACE
 
@@ -65,7 +66,7 @@ var_list:
 | { [] }
 
 stmt:
-| id = IDENT; EQUAL; expr; SEMI { [id] }
+| id = IDENT; ASSIGN; expr; SEMI { [id] }
 | KOUTPUT expr { ["KOUTPUT"] }
 | s1 = stmt; SEMI; s = stmt { s1 @ s }
 | KIF; LPAREN; expr; RPAREN; 
