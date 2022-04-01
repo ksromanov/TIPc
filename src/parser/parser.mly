@@ -40,59 +40,61 @@
 
 %token EOF
 
-%start <int list> program
-%type <int> func
-%type <string> stmt
-%type <int> expr
-%type <int> record_field
+%start <Parsetree.program> program
 
 %%
 program: p = list(func); EOF { p }
 
-func: 
+func:
 |   name = IDENT; LPAREN; args = separated_list(COMMA, IDENT); RPAREN;
-    LBRACE; var_bs = list(vars_block); stmts = list(stmt); KRETURN; expr; SEMI; RBRACE
-    { List.length args + List.length var_bs + String.length name + List.length stmts }
+    LBRACE; var_blocks = list(vars_block); stmts = list(stmt); KRETURN; ret_expr = expr; SEMI; RBRACE
+    { { name; args; var_blocks; stmts; ret_expr } }
 
 vars_block: KVAR; vs = separated_nonempty_list(COMMA, IDENT); SEMI { vs }
 
 stmt:
-| id = IDENT; ASSIGN; expr; SEMI { id }
-| KOUTPUT expr SEMI { "KOUTPUT" }
-| KERROR expr SEMI { "KERROR" }
-| KIF; LPAREN; expr; RPAREN; 
-  stmt KELSE stmt { "if" }
-| KIF; LPAREN; expr; RPAREN; 
-  stmt { "iff" }
-| KWHILE; LPAREN; expr; RPAREN;
-  LBRACE; list(stmt); RBRACE { "while" }
-| TIMES; expr; ASSIGN; expr ; SEMI { "indirect" }
-| IDENT DOT IDENT ASSIGN expr ; SEMI { "record access" }
-| LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { "star access" }
-| LBRACE; list(stmt); RBRACE { "block" }
+| id = IDENT; ASSIGN; e = expr; SEMI { Assignment (id, e) }
+| KOUTPUT; e = expr; SEMI { Output e }
+| KERROR; e = expr; SEMI { Error e }
+| KIF; LPAREN; cond = expr; RPAREN;
+  thn = stmt; KELSE; els = stmt;
+  { If (cond, thn, Some els) }
+| KIF; LPAREN; cond = expr; RPAREN;
+  thn = stmt;
+  { If (cond, thn, None) }
+| KWHILE; LPAREN; cond = expr; RPAREN;
+  LBRACE; body = list(stmt); RBRACE;
+  { While (cond, body) }
+| TIMES; p = expr; ASSIGN; value = expr ; SEMI { Store (p, value) }
+| r = IDENT DOT field = IDENT ASSIGN value = expr ; SEMI
+  { DirectRecordWrite (r, field, value) }
+| LPAREN TIMES; p = expr; RPAREN DOT; field = IDENT; ASSIGN;
+  value = expr ; SEMI { IndirectRecordWrite (p, field, value) }
+| LBRACE; block = list(stmt); RBRACE { Block block }
 
 record_field:
-  field = separated_pair(IDENT, COLON, expr) { String.length (fst field) }
+  field = separated_pair(IDENT, COLON, expr) { field }
 
 expr:
-| IDENT {0}
-| n = INT { n }
-| expr; PLUS ; expr { 1 }
-| expr; MINUS ; expr { 1 }
-| MINUS; n = INT { -n }
-| expr; TIMES ; expr { 1 }
-| expr; DIV ; expr { 1 }
-| expr; GREATER ; expr { 1 }
-| expr; EQUAL ; expr { 1 }
+| id = IDENT { Id id }
+| n = INT { Int n }
+| a = expr; PLUS ; b = expr { Binop (a, Plus, b) }
+| a = expr; MINUS ; b = expr { Binop (a, Minus, b) }
+| MINUS; n = INT { Int (-n) }
+| a = expr; TIMES ; b = expr { Binop (a, Times, b) }
+| a = expr; DIV ; b = expr { Binop (a, Div, b) }
+| a = expr; GREATER ; b = expr { Binop (a, Greater, b) }
+| a = expr; EQUAL ; b = expr { Binop (a, Equal, b) }
 | LPAREN; e = expr; RPAREN { e }
-| KINPUT { 88 }
-| IDENT; LPAREN; args = separated_list( COMMA, expr); RPAREN
-  { List.length(args) } // direct or indirect function call
-| expr; LPAREN; args = separated_list( COMMA, expr); RPAREN
-  { List.length(args) }  // definitely indirect function call
-| KALLOC; e = expr { 3 + e }
-| AMPERSAND; expr { 4 }
-| TIMES; expr { 6 }
-| KNULL { 5 }
-| LBRACE; separated_nonempty_list( COMMA, record_field); RBRACE { 8 }
-| expr; DOT; IDENT { 9 }
+| KINPUT { Input }
+| f = IDENT; LPAREN; args = separated_list( COMMA, expr); RPAREN
+  { DirectApply (f, args) } // direct or indirect function call
+| f = expr; LPAREN; args = separated_list( COMMA, expr); RPAREN
+  { ComputedApply (f, args) }  // definitely indirect function call
+| KALLOC; e = expr { Alloc e }
+| AMPERSAND; id = IDENT { Reference id }
+| TIMES; e = expr { DeReference e }
+| KNULL { Null }
+| LBRACE; fields = separated_nonempty_list( COMMA, record_field); RBRACE
+  { Record fields }
+| r = expr; DOT; field = IDENT { FieldRead (r, field) }

@@ -1,11 +1,13 @@
 (* Driver for TIP parser *)
+open Parsetree
 
 let parse filename =
   let lexbuf = Lexing.from_channel (open_in filename) in
 
   try
     let program = Parser.program Lexer.token lexbuf in
-    List.iter (Printf.printf "%d\n%!") program
+    Printf.printf "Functions:\n";
+    List.iter (fun f -> Printf.printf "\t%s\n%!" f.name) program
   with _ -> Printf.printf "Unknown error while parsing %s\n" filename
 
 let _ =
