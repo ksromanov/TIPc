@@ -38,37 +38,19 @@
 
 %start <int list> program
 %type <int> func
-%type <string list> args
 %type <string> stmt
-%type <string list> stmt_list
-%type <string list> var_list
-%type <string list list> vars_blocks
 %type <int> expr
 %type <int> record_field
-%type <int list> record_fields
 
 %%
-program:
-| f = func; p = program { f::p }
-| EOF { [] }
+program: p = list(func); EOF { p }
 
 func: 
-|   name = IDENT; LPAREN; a = args; RPAREN;
-    LBRACE; vars_blocks; stmt_list; KRETURN; expr; SEMI; RBRACE
-    { List.length a + String.length name }
+|   name = IDENT; LPAREN; args = separated_list(COMMA, IDENT); RPAREN;
+    LBRACE; var_bs = list(vars_block); stmts = list(stmt); KRETURN; expr; SEMI; RBRACE
+    { List.length args + List.length var_bs + String.length name + List.length stmts }
 
-args:
-| arg = IDENT; COMMA; a = args { arg::a }
-| arg = IDENT { [arg] }
-| { [] }
-
-vars_blocks:
-| KVAR; vars = var_list; SEMI  vbs = vars_blocks { vars :: vbs }
-| { [] }
-
-var_list:
-| id = IDENT; COMMA; vars = var_list { id :: vars }
-| id = IDENT { [id] }
+vars_block: KVAR; vs = separated_nonempty_list(COMMA, IDENT); SEMI { vs }
 
 stmt:
 | id = IDENT; ASSIGN; expr; SEMI { id }
@@ -79,20 +61,14 @@ stmt:
 | KIF; LPAREN; expr; RPAREN; 
   stmt { "iff" }
 | KWHILE; LPAREN; expr; RPAREN;
-  LBRACE; stmt_list RBRACE { "while" }
+  LBRACE; list(stmt); RBRACE { "while" }
 | TIMES; expr; ASSIGN; expr ; SEMI { "indirect" }
 | IDENT DOT IDENT ASSIGN expr ; SEMI { "record access" }
 | LPAREN TIMES expr RPAREN DOT IDENT ASSIGN expr ; SEMI { "star access" }
-| LBRACE; stmt_list; RBRACE { "block" }
+| LBRACE; list(stmt); RBRACE { "block" }
 
-stmt_list:
-| s = stmt; ss = stmt_list { s::ss }
-| { [] }
-
-expr_list:
-| e = expr; COMMA; es = expr_list { e::es }
-| e = expr { [e] }
-| { [] }
+record_field:
+  field = separated_pair(IDENT, COLON, expr) { String.length (fst field) }
 
 expr:
 | IDENT {0}
@@ -106,18 +82,13 @@ expr:
 | expr; EQUAL ; expr { 1 }
 | LPAREN; e = expr; RPAREN { e }
 | KINPUT { 88 }
-| IDENT; LPAREN; expr_list; RPAREN { 2 } // direct or indirect function call
-| expr; LPAREN; expr_list; RPAREN { 2 }  // definitely indirect function call
+| IDENT; LPAREN; args = separated_list( COMMA, expr); RPAREN
+  { List.length(args) } // direct or indirect function call
+| expr; LPAREN; args = separated_list( COMMA, expr); RPAREN
+  { List.length(args) }  // definitely indirect function call
 | KALLOC; e = expr { 3 + e }
 | AMPERSAND; expr { 4 }
 | TIMES; expr { 6 }
 | KNULL { 5 }
-| LBRACE; record_fields; RBRACE { 8 }
+| LBRACE; separated_nonempty_list( COMMA, record_field); RBRACE { 8 }
 | expr; DOT; IDENT { 9 }
-
-record_fields:
-| f = record_field; COMMA; fs = record_fields { f :: fs }
-| f = record_field { [f] }
-
-record_field:
-| IDENT; COLON; expr { 8 }
