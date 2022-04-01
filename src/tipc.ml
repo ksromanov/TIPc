@@ -6,8 +6,7 @@ let parse filename =
 
   try
     let program = Parser.program Lexer.token lexbuf in
-    Printf.printf "Functions:\n";
-    List.iter (fun f -> Printf.printf "\t%s\n%!" f.name) program
+    Printf.printf "%s\n" (show_program program)
   with _ -> Printf.printf "Unknown error while parsing %s\n" filename
 
 let _ =
