@@ -1,4 +1,8 @@
 (* Draft skeleton of TIP language grammar *)
+%{
+  open Parsetree
+%}
+
 %token KALLOC
 %token KINPUT
 %token KWHILE
