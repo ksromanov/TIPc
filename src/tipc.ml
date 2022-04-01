@@ -6,9 +6,7 @@ let parse filename =
   try
     let program = Parser.program Lexer.token lexbuf in
     List.iter (Printf.printf "%d\n%!") program
-  with
-  | End_of_file -> Printf.printf "end of file"
-  | _ -> Printf.printf "Unknown error while parsing %s\n" filename
+  with _ -> Printf.printf "Unknown error while parsing %s\n" filename
 
 let _ =
   match Sys.argv with
