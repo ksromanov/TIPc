@@ -82,6 +82,7 @@ expr:
 | a = expr; MINUS ; b = expr { Binop (a, Minus, b) }
 | MINUS; n = INT { Int (-n) }
 | a = expr; TIMES ; b = expr { Binop (a, Times, b) }
+| TIMES; e = expr { DeReference e }
 | a = expr; DIV ; b = expr { Binop (a, Div, b) }
 | a = expr; GREATER ; b = expr { Binop (a, Greater, b) }
 | a = expr; EQUAL ; b = expr { Binop (a, Equal, b) }
@@ -93,7 +94,6 @@ expr:
   { ComputedApply (f, args) }  // definitely indirect function call
 | KALLOC; e = expr { Alloc e }
 | AMPERSAND; id = IDENT { Reference id }
-| TIMES; e = expr { DeReference e }
 | KNULL { Null }
 | LBRACE; fields = separated_nonempty_list( COMMA, record_field); RBRACE
   { Record fields }
