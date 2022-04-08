@@ -1,6 +1,8 @@
-(include_subdirs unqualified) ;; For parser and lexer
+(include_subdirs unqualified)
+
+;; For parser and lexer
 
 (executable
- (preprocess (pps ppx_deriving.show))
-
+ (preprocess
+  (pps ppx_deriving.show))
  (name tipc))
