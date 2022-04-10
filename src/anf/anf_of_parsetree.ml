@@ -48,7 +48,7 @@ and anf_expression expr =
       | Id f ->
           ( f_assignments @ List.concat assignments,
             Complex (ComputedApply (f, args)) )
-      | _ -> failwith "Attempt to call a non-function")
+      | _ -> failwith "ANF: Attempt to call a non-function")
   | Alloc expr ->
       let assignments, id = anf_atomic_expression expr in
       (assignments, Complex (Alloc id))
@@ -76,7 +76,7 @@ let statement_of_atomic_expr expr statement_of_expr =
   match ret with
   | Atomic ret ->
       List.map statement_of_assignment assignments @ [ statement_of_expr ret ]
-  | _ -> failwith "internal error, non-atomic expression"
+  | _ -> failwith "ANF: internal error, non-atomic expression"
 
 let rec anf_of_parsetree_stmt stmt =
   let open Parsetree in
@@ -112,7 +112,7 @@ let rec anf_of_parsetree_stmt stmt =
           List.map statement_of_assignment assignments
           @ List.map statement_of_assignment ptr_assignments
           @ [ Store (id, ret) ]
-      | _ -> failwith "Attempt to store to non-ptr")
+      | _ -> failwith "ANF: Attempt to store to non-ptr")
   | DirectRecordWrite (r, f, expr) ->
       let assignments, ret = anf_expression expr in
       List.map statement_of_assignment assignments
@@ -125,7 +125,7 @@ let rec anf_of_parsetree_stmt stmt =
           List.map statement_of_assignment assignments
           @ List.map statement_of_assignment r_assignments
           @ [ DirectRecordWrite (id, Ident f, ret) ]
-      | _ -> failwith "Attempt to store to non-record")
+      | _ -> failwith "ANF: Attempt to store to non-record")
   | Block stmts -> List.flatten @@ List.map anf_of_parsetree_stmt stmts
 
 let anf_of_parsetree_func func =
