@@ -114,7 +114,7 @@ and exec (env : environment) (s : statement) =
           env
       | None -> failwith @@ "Undeclared variable '" ^ id ^ "'")
   | Output e ->
-      Printf.printf "output";
+      Printf.printf "Output: %s\n" (show_expression e);
       env
   | Error e -> failwith @@ "Program triggered error " ^ show_value (eval env e)
   | If (cond, thn, els) -> (

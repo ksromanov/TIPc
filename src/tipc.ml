@@ -1,5 +1,4 @@
 (* Driver for TIP parser *)
-open Parsetree
 
 let parse filename =
   let lexbuf = Lexing.from_channel (open_in filename) in
@@ -9,7 +8,11 @@ let parse filename =
   (*  Printf.printf "%s\n" (show_program program); *)
   (*   with _ -> Printf.printf "Unknown error while parsing %s\n" filename; *)
   let result = Parsetree_interpreter.run program [] in
-  Printf.printf "Result: %s\n" (Parsetree_interpreter.show_value result)
+  Printf.printf "Result: %s\n" (Parsetree_interpreter.show_value result);
+  Printf.printf
+    "--------------------------------------------------------------------------------\n";
+  Printf.printf "ANF form: %s\n"
+    (Anf.show_program (Anf_of_parsetree.anf_of_parsetree program))
 
 let _ =
   match Sys.argv with
