@@ -11,8 +11,12 @@ let parse filename =
   Printf.printf "Result: %s\n" (Parsetree_interpreter.show_value result);
   Printf.printf
     "--------------------------------------------------------------------------------\n";
-  Printf.printf "ANF form: %s\n"
-    (Anf.show_program (Anf_of_parsetree.anf_of_parsetree program))
+  let anf_program = Anf_of_parsetree.anf_of_parsetree program in
+  Printf.printf "ANF form: %s\n" (Anf.show_program anf_program);
+
+  let types = Typing.infer anf_program in
+  Printf.printf "%d independent variables" types;
+  ()
 
 let _ =
   match Sys.argv with
