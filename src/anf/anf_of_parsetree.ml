@@ -135,7 +135,8 @@ let anf_of_parsetree_func func =
   {
     name = func.Parsetree.name;
     args = List.map (fun s -> Ident s) func.Parsetree.args;
-    var_blocks = [];
+    var_blocks =
+      List.map (List.map (fun ident -> Ident ident)) func.Parsetree.var_blocks;
     stmts =
       (List.flatten @@ List.map anf_of_parsetree_stmt func.Parsetree.stmts)
       @ List.map statement_of_assignment ret_assignments;
