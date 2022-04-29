@@ -3,28 +3,133 @@
 
 open Anf
 
-type function_name = string
-type typeVariable = int
+type typeVariable = int [@@deriving show]
 
-type varType =
+(* Типы разных объектов программы - функций, аргументов, переменных *)
+type entityType =
   | Int
-  | Pointer of varType
-  | Arrow of varType list * varType
-  | TypeVar of typeVariable (* фактически заменяется на Id of typeable? *)
-  | Mu of typeVariable * varType (* вообще не используется... *)
-  | Entity of typeable
+  | Pointer of entityType
+  | Arrow of entityType list * entityType (* type of a function *)
+  | TypeVar of typeVariable
+  | Mu of typeVariable * entityType (* пока не используется! *)
+[@@deriving show]
 
-and typeable =
-  | Function of function_name
-  | Retval of function_name
-  | Variable of function_name * ident (* Both argument and variable *)
-
-module Typeables = Set.Make (struct
-  type t = varType
+(* Не факт, что будет использовать сейчас и в дальнейшем *)
+module EntityType = Set.Make (struct
+  type t = entityType
 
   let compare = compare
 end)
 
+(* Всевозможные объекты программы - функции, аргументы и переменные *)
+type function_name = string [@@deriving show]
+
+type entity =
+  | Function of function_name
+  | Argument of function_name * ident
+  | Variable of function_name * ident
+[@@deriving show]
+
+(* Allocate or return type variable for a given entity *)
+let typeVar_of_entity : entity -> typeVariable =
+  let entity_type_var_map = Hashtbl.create 10 in
+  let last_type_var_allocated = ref 0 in
+  fun (e : entity) ->
+    match Hashtbl.find_opt entity_type_var_map e with
+    | Some t -> t
+    | None ->
+        last_type_var_allocated := !last_type_var_allocated + 1;
+        Hashtbl.add entity_type_var_map e !last_type_var_allocated;
+        !last_type_var_allocated
+
+(* UnionFind structure specifically designed for typing. *)
+module UnionFind = struct
+  type elem = entityType
+
+  let data : (entityType, entityType) Hashtbl.t = Hashtbl.create 10
+
+  let make_set t =
+    match Hashtbl.find_opt data t with
+    | None -> Hashtbl.add data t t
+    | Some _ -> ()
+
+  let rec find t =
+    match Hashtbl.find data t with r when r = t -> r | r -> find r
+
+  let union a b =
+    let b_root = find b in
+    let rec update_root e r =
+      match Hashtbl.find data e with
+      | r' when r' = e -> Hashtbl.add data e r
+      | r' ->
+          Hashtbl.add data e r;
+          update_root r' r
+    in
+    update_root a b_root
+end
+
+let collect_typeables program =
+  let types : (entity, typeVariable) Hashtbl.t = Hashtbl.create 10 in
+  let add_type_for_entity e =
+    match Hashtbl.find_opt types e with
+    | Some _ -> ()
+    | None -> Hashtbl.add types e (typeVar_of_entity e)
+  in
+
+  let collect_typeables_func { name = f_name; args; var_blocks; stmts; _ } =
+    let rec collect_typeables_stmt = function
+      | Assignment (id, _) -> add_type_for_entity (Variable (f_name, id))
+      | Output _ -> ()
+      | Error _ -> ()
+      | If (_, thn, Some els) ->
+          collect_typeables_stmt thn;
+          collect_typeables_stmt els
+      | If (_, thn, None) -> collect_typeables_stmt thn
+      | While (_, body) -> List.iter collect_typeables_stmt body
+      | Store (id, _) -> add_type_for_entity (Variable (f_name, id))
+      | DirectRecordWrite (id, _, _) ->
+          add_type_for_entity (Variable (f_name, id))
+      | Block body -> List.iter collect_typeables_stmt body
+    in
+
+    add_type_for_entity (Function f_name);
+    List.iter (fun arg -> add_type_for_entity (Argument (f_name, arg))) args;
+
+    List.iter (fun var -> add_type_for_entity (Variable (f_name, var)))
+    @@ List.flatten var_blocks;
+    List.iter collect_typeables_stmt stmts
+  in
+  List.iter collect_typeables_func program;
+  types
+
+let rec unify (a : entityType) (b : entityType) : unit =
+  let open UnionFind in
+  make_set a;
+  make_set b;
+
+  let a_r, b_r = (find a, find b) in
+  match (a_r, b_r) with
+  | _ when a_r = b_r -> ()
+  | TypeVar _, TypeVar _ -> UnionFind.union a_r b_r
+  | TypeVar _, _ -> UnionFind.union a_r b_r
+  | _, TypeVar _ -> UnionFind.union b_r a_r
+  | Int, Int -> failwith "unreachable"
+  | Pointer p_a, Pointer p_b -> unify p_a p_b
+  | Arrow (a_args, a_ret), Arrow (b_args, b_ret) ->
+      List.iter2 unify a_args b_args;
+      unify a_ret b_ret
+  | Mu _, Mu _ -> failwith "mu functions are unreachable"
+  | _ ->
+      failwith @@ "unification failed between a = " ^ show_entityType a
+      ^ " and " ^ show_entityType b
+
+let typeInferenceUnion program = ()
+(*  failwith "typeInferenceUnion is not yet implemented" *)
+
+let infer program = Hashtbl.length @@ collect_typeables program
+(* failwith "infer is unimplemented" *)
+
+(*
 let collect_typeables program =
   let collect_typeables_func set { name; args; var_blocks; stmts; _ } =
     let collect_typeables_var_blocks set var_blocks =
@@ -64,37 +169,6 @@ let infer program =
   let typeables = collect_typeables program in
   Typeables.cardinal typeables
 
-(* UnionFind structure specifically designed for typing. *)
-module UnionFindX = struct
-  type elem = varType
-  type store = (varType, varType) Hashtbl.t
-
-  let data : store = Hashtbl.create 10
-
-  let add e =
-    match Hashtbl.find_opt data e with
-    | None -> Hashtbl.add data e e
-    | Some _ -> ()
-
-  let rec find e =
-    match Hashtbl.find data e with r when r = e -> r | r -> find r
-
-  let union a b =
-    let b_root = find b in
-    let rec update_root e r =
-      match Hashtbl.find data e with
-      | r' when r' = e -> Hashtbl.add data e r
-      | r' ->
-          Hashtbl.add data e r;
-          update_root r' r
-    in
-    update_root a b_root
-
-  let unionAdd a b =
-    add a;
-    add b;
-    union a b
-end
 
 let typeInferenceUnion program =
   let unifyToplevelSignature { name; args; _ } =
@@ -144,3 +218,4 @@ let typeInferenceUnion program =
   in
   List.iter unifyFunctionBody program;
   UnionFindX.data
+*)
