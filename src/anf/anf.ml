@@ -38,7 +38,7 @@ type argument = ident [@@deriving show]
 type func = {
   name : string;
   args : argument list;
-  var_blocks : ident list list;
+  var_blocks : string list list;
   stmts : statement list;
   ret_expr : atomic_expression;
 }
