@@ -111,7 +111,7 @@ let rec unify (a : entityType) (b : entityType) : unit =
   | TypeVar _, TypeVar _ -> UnionFind.union a_r b_r
   | TypeVar _, _ -> UnionFind.union a_r b_r
   | _, TypeVar _ -> UnionFind.union b_r a_r
-  | Int, Int -> failwith "unreachable"
+  | Int, Int -> failwith "unreachable: Int, Int comparison"
   | Pointer p_a, Pointer p_b -> unify p_a p_b
   | Arrow (a_args, a_ret), Arrow (b_args, b_ret) ->
       if List.length a_args <> List.length b_args then
@@ -119,7 +119,7 @@ let rec unify (a : entityType) (b : entityType) : unit =
         ^ show_entityType b_r ^ " because of different arities";
       List.iter2 unify a_args b_args;
       unify a_ret b_ret
-  | Mu _, Mu _ -> failwith "mu functions are unreachable"
+  | Mu _, Mu _ -> failwith "unreachable: mu functions"
   | _ ->
       failwith @@ "unification failed between a = " ^ show_entityType a
       ^ " and " ^ show_entityType b
@@ -161,8 +161,13 @@ let typeInferenceUnion program =
             (infer_type_of_atomic_expression b);
           Int
       | Input -> Int
+      | Apply (Temporary _, _) ->
+          failwith "internal error: Apply of temporary variable"
+      | Apply (Ident f_ident, args)
+        when not (List.exists (fun { name; _ } -> name = f_ident) program) ->
+          failwith "internal error: Application of an undeclared function"
+      | Apply (Ident f_ident, args) -> failwith "not implemented"
       (*
-  | Apply of ident * atomic_expression list
   | ComputedApply of ident * atomic_expression list
   *)
       | Alloc expr -> Pointer (infer_type_of_atomic_expression expr)
