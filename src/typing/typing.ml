@@ -114,6 +114,9 @@ let rec unify (a : entityType) (b : entityType) : unit =
   | Int, Int -> failwith "unreachable"
   | Pointer p_a, Pointer p_b -> unify p_a p_b
   | Arrow (a_args, a_ret), Arrow (b_args, b_ret) ->
+      if List.length a_args <> List.length b_args then
+        failwith @@ "Unable to unify " ^ show_entityType a_r ^ " and "
+        ^ show_entityType b_r ^ " because of different arities";
       List.iter2 unify a_args b_args;
       unify a_ret b_ret
   | Mu _, Mu _ -> failwith "mu functions are unreachable"
@@ -153,8 +156,9 @@ let typeInferenceUnion program =
     in
     let rec infer_type_of_complex_expression = function
       | Binop (a, _, b) ->
-          unify (infer_type_of_atomic_expression a);
-          unify (infer_type_of_atomic_expression b);
+          unify
+            (infer_type_of_atomic_expression a)
+            (infer_type_of_atomic_expression b);
           Int
       | Input -> Int
       (*
