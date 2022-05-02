@@ -150,7 +150,7 @@ let typeInferenceUnion (program : Anf.program) =
       | Id ident -> entityType_of_ident ident
       | Anf.Null -> Pointer Int (* FIXME: add "new_typevar" *)
     in
-    let rec infer_type_of_complex_expression = function
+    let infer_type_of_complex_expression = function
       | Binop (a, _, b) ->
           unify
             (infer_type_of_atomic_expression a)
@@ -182,18 +182,26 @@ let typeInferenceUnion (program : Anf.program) =
           ret_type
       | Alloc expr -> Pointer (infer_type_of_atomic_expression expr)
       | Reference ident -> Pointer (entityType_of_ident ident)
-      | DeReference expr -> failwith "dereference is not yet implemented"
+      | DeReference expr -> failwith "internal error: unreachable"
       | Record r -> failwith "record is not yet implemented"
       | FieldRead (Id r, field) -> failwith "Field read is not implemented"
       | FieldRead (_, _) -> failwith "Attempt to read non-record"
     in
-    let rec infer_types_of_expression = function
+    let infer_types_of_expression = function
       | Atomic expr -> infer_type_of_atomic_expression expr
       | Complex expr -> infer_type_of_complex_expression expr
     in
     let rec infer_types_of_statement = function
-      | Assignment (ident, expr) ->
-          unify (entityType_of_ident ident) (infer_types_of_expression expr)
+      | Assignment (ident, expr) -> (
+          match expr with
+          (* Dereference should be considered separately *)
+          | Complex (DeReference expr) ->
+              unify
+                (Pointer (entityType_of_ident ident))
+                (infer_type_of_atomic_expression expr)
+          | _ ->
+              unify (entityType_of_ident ident) (infer_types_of_expression expr)
+          )
       | Output (Int _) | Error (Int _) -> ()
       | Output Null -> failwith "Attempt to output NULL"
       | Error Null -> failwith "Attempt to make an error of NULL"
