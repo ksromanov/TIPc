@@ -2,17 +2,7 @@
    We start from ANF representation. *)
 
 open Anf
-
-type typeVariable = int [@@deriving show]
-
-(* Типы разных объектов программы - функций, аргументов, переменных *)
-type entityType =
-  | Int
-  | Pointer of entityType
-  | Arrow of entityType list * entityType (* type of a function *)
-  | TypeVar of typeVariable
-  | Mu of typeVariable * entityType (* пока не используется! *)
-[@@deriving show]
+open Typed_anf
 
 (* Всевозможные объекты программы - функции, аргументы и переменные *)
 type function_name = string [@@deriving show]
@@ -74,7 +64,8 @@ let collect_typeables program =
     | None -> Hashtbl.add types e (typevar_of_entity e)
   in
 
-  let collect_typeables_func { name = f_name; args; var_blocks; stmts; _ } =
+  let collect_typeables_func
+      ({ name = f_name; args; var_blocks; stmts; _ } : Anf.func) =
     let rec collect_typeables_stmt = function
       | Assignment (id, _) -> add_type_for_entity (Variable (f_name, id))
       | Output _ -> ()
@@ -124,7 +115,7 @@ let rec unify (a : entityType) (b : entityType) : unit =
       failwith @@ "unification failed between a = " ^ show_entityType a
       ^ " and " ^ show_entityType b
 
-let typeInferenceUnion program =
+let typeInferenceUnion (program : Anf.program) =
   let entityType_of_entity (e : entity) : entityType =
     let typeVar = TypeVar (typevar_of_entity e) in
     UnionFind.make_set typeVar;
@@ -133,7 +124,8 @@ let typeInferenceUnion program =
 
   let make_typevar e = void @@ entityType_of_entity e in
 
-  let infer_types_of_function { name; args; var_blocks; stmts; _ } =
+  let infer_types_of_function ({ name; args; var_blocks; stmts; _ } : Anf.func)
+      =
     let module VarSet = Set.Make (String) in
     (* Names from variable block to allow "shadowing" of arguments *)
     let declared_var_names =
@@ -164,7 +156,8 @@ let typeInferenceUnion program =
       | Apply (Temporary _, _) ->
           failwith "internal error: Apply of temporary variable"
       | Apply (Ident f_ident, args)
-        when not (List.exists (fun { name; _ } -> name = f_ident) program) ->
+        when not (List.exists (fun { Anf.name; _ } -> name = f_ident) program)
+        ->
           failwith "internal error: Application of an undeclared function"
       | Apply (Ident f_ident, args) -> failwith "not implemented"
       (*
@@ -210,7 +203,7 @@ let typeInferenceUnion program =
     List.iter infer_types_of_statement stmts
   in
 
-  let add_function_signature { name; args; _ } =
+  let add_function_signature ({ name; args; _ } : Anf.func) =
     let args =
       List.map (fun arg -> entityType_of_entity (Argument (name, arg))) args
     in
@@ -228,5 +221,5 @@ let typeInferenceUnion program =
   List.iter add_function_signature program;
   List.iter infer_types_of_function program
 
-let infer program = Hashtbl.length @@ collect_typeables program
+let infer (program : Anf.program) = Hashtbl.length @@ collect_typeables program
 (* failwith "infer is unimplemented" *)
