@@ -116,8 +116,12 @@ let rec unify (a : entityType) (b : entityType) : unit =
       unify a_ret b_ret
   | Mu _, Mu _ -> failwith "unreachable: mu functions"
   | _ ->
-      failwith @@ "unification failed between a = " ^ show_entityType a
-      ^ " and " ^ show_entityType b
+      let show r = function
+        | TypeVar _ as e -> show_entityType e ^ " -> " ^ show_entityType r
+        | e -> show_entityType e
+      in
+      failwith @@ "unification failed between a = " ^ show a_r a ^ " and b = "
+      ^ show b_r b
 
 let typeInferenceUnion (program : Anf.program) =
   let entityType_of_entity (e : entity) : entityType =
