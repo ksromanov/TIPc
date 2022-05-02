@@ -155,11 +155,18 @@ let typeInferenceUnion (program : Anf.program) =
       | Input -> Int
       | Apply (Temporary _, _) ->
           failwith "internal error: Apply of temporary variable"
-      | Apply (Ident f_ident, args)
+      | Apply (Ident f_ident, _)
         when not (List.exists (fun { Anf.name; _ } -> name = f_ident) program)
         ->
           failwith "internal error: Application of an undeclared function"
-      | Apply (Ident f_ident, args) -> failwith "not implemented"
+      | Apply (Ident f_ident, args) -> (
+          let f_type = TypeVar (typevar_of_entity (Function f_ident)) in
+          match UnionFind.find f_type with
+          | Arrow (a_args, ret) ->
+              List.iter2 unify a_args
+              @@ List.map infer_type_of_atomic_expression args;
+              ret
+          | _ -> failwith "internal error - function is tied with non-Arrow")
       (*
   | ComputedApply of ident * atomic_expression list
   *)
