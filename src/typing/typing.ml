@@ -17,16 +17,20 @@ type entity =
 let void _ = ()
 
 (* Allocate or return type variable for a given entity *)
-let typevar_of_entity : entity -> typeVariable =
+let ( (create_typevar : unit -> typeVariable),
+      (typevar_of_entity : entity -> typeVariable) ) =
   let entity_type_var_map = Hashtbl.create 10 in
   let last_type_var_allocated = ref 0 in
-  fun (e : entity) ->
-    match Hashtbl.find_opt entity_type_var_map e with
-    | Some t -> t
-    | None ->
-        last_type_var_allocated := !last_type_var_allocated + 1;
-        Hashtbl.add entity_type_var_map e !last_type_var_allocated;
-        !last_type_var_allocated
+  ( (fun () ->
+      last_type_var_allocated := !last_type_var_allocated + 1;
+      !last_type_var_allocated),
+    fun (e : entity) ->
+      match Hashtbl.find_opt entity_type_var_map e with
+      | Some t -> t
+      | None ->
+          last_type_var_allocated := !last_type_var_allocated + 1;
+          Hashtbl.add entity_type_var_map e !last_type_var_allocated;
+          !last_type_var_allocated )
 
 (* UnionFind structure specifically designed for typing. *)
 module UnionFind = struct
@@ -167,9 +171,15 @@ let typeInferenceUnion (program : Anf.program) =
               @@ List.map infer_type_of_atomic_expression args;
               ret
           | _ -> failwith "internal error - function is tied with non-Arrow")
-      (*
-  | ComputedApply of ident * atomic_expression list
-  *)
+      | ComputedApply (f_ident, args) ->
+          let f_type = entityType_of_ident f_ident in
+          let arg_types = List.map infer_type_of_atomic_expression args in
+          let ret_type = TypeVar (create_typevar ()) in
+          UnionFind.make_set ret_type;
+          List.iter UnionFind.make_set arg_types;
+          (* FIXME: is it mandatory? *)
+          unify f_type (Arrow (arg_types, ret_type));
+          ret_type
       | Alloc expr -> Pointer (infer_type_of_atomic_expression expr)
       | Reference ident -> Pointer (entityType_of_ident ident)
       | DeReference expr -> failwith "dereference is not yet implemented"
