@@ -18,19 +18,30 @@ let void _ = ()
 
 (* Allocate or return type variable for a given entity *)
 let ( (create_typevar : unit -> typeVariable),
-      (typevar_of_entity : entity -> typeVariable) ) =
+      (typevar_of_entity : entity -> typeVariable),
+      (typed_entities : function_name -> entity list) ) =
   let entity_type_var_map = Hashtbl.create 10 in
   let last_type_var_allocated = ref 0 in
   ( (fun () ->
       last_type_var_allocated := !last_type_var_allocated + 1;
       !last_type_var_allocated),
-    fun (e : entity) ->
+    (fun (e : entity) ->
       match Hashtbl.find_opt entity_type_var_map e with
       | Some t -> t
       | None ->
           last_type_var_allocated := !last_type_var_allocated + 1;
           Hashtbl.add entity_type_var_map e !last_type_var_allocated;
-          !last_type_var_allocated )
+          !last_type_var_allocated),
+    fun f_name ->
+      Hashtbl.fold
+        (fun e _ acc ->
+          match e with
+          | Function name as e when name = f_name -> e :: acc
+          | Argument (name, _) as e when name = f_name -> e :: acc
+          | Return name as e when name = f_name -> e :: acc
+          | Variable (name, _) as e when name = f_name -> e :: acc
+          | _ -> acc)
+        entity_type_var_map [] )
 
 (* UnionFind structure specifically designed for typing. *)
 module UnionFind = struct
@@ -250,5 +261,39 @@ let typeInferenceUnion (program : Anf.program) =
   List.iter add_function_signature program;
   List.iter infer_types_of_function program
 
-let infer (program : Anf.program) = Hashtbl.length @@ collect_typeables program
-(* failwith "infer is unimplemented" *)
+let infer (program : Anf.program) : Typed_anf.program =
+  typeInferenceUnion program;
+  List.map
+    (fun { Anf.name; Anf.args; Anf.var_blocks; Anf.stmts; Anf.ret_expr } ->
+      {
+        Typed_anf.name;
+        Typed_anf.args =
+          List.map
+            (fun a ->
+              ( a,
+                UnionFind.find
+                  (TypeVar (typevar_of_entity (Argument (name, a)))) ))
+            args;
+        Typed_anf.var_blocks =
+          List.map
+            (List.map (fun v ->
+                 ( v,
+                   UnionFind.find
+                     (TypeVar (typevar_of_entity (Variable (name, Ident v)))) )))
+            var_blocks;
+        Typed_anf.stmts;
+        Typed_anf.ret_expr;
+        Typed_anf.return_type =
+          UnionFind.find (TypeVar (typevar_of_entity (Function name)));
+        Typed_anf.temporary_vars =
+          List.map (fun t ->
+              ( t,
+                UnionFind.find
+                  (TypeVar (typevar_of_entity (Variable (name, Temporary t))))
+              ))
+          @@ List.filter_map (function
+               | Variable (_, Temporary t) -> Some t
+               | _ -> None)
+          @@ typed_entities name;
+      })
+    program

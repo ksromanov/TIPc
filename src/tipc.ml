@@ -12,11 +12,10 @@ let parse filename =
   Printf.printf
     "--------------------------------------------------------------------------------\n";
   let anf_program = Anf_of_parsetree.anf_of_parsetree program in
-  Printf.printf "ANF form: %s\n" (Anf.show_program anf_program);
-
   let _ = Typing.typeInferenceUnion anf_program in
-  let types = Typing.infer anf_program in
-  Printf.printf "%d independent variables" types;
+  let typed_anf_program = Typing.infer anf_program in
+  Printf.printf "Typed ANF form: %s\n"
+    (Typed_anf.show_program typed_anf_program);
   ()
 
 let _ =
