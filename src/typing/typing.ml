@@ -143,8 +143,8 @@ let typeInferenceUnion (program : Anf.program) =
 
   let make_typevar e = void @@ entityType_of_entity e in
 
-  let infer_types_of_function ({ name; args; var_blocks; stmts; _ } : Anf.func)
-      =
+  let infer_types_of_function
+      ({ name; args; var_blocks; stmts; ret_expr } : Anf.func) =
     let module VarSet = Set.Make (String) in
     (* Names from variable block to allow "shadowing" of arguments *)
     let declared_var_names =
@@ -240,7 +240,9 @@ let typeInferenceUnion (program : Anf.program) =
     List.iter (fun var -> make_typevar (Variable (name, Ident var)))
     @@ List.flatten var_blocks;
 
-    List.iter infer_types_of_statement stmts
+    List.iter infer_types_of_statement stmts;
+
+    infer_type_of_atomic_expression ret_expr
   in
 
   let add_function_signature ({ name; args; _ } : Anf.func) =
@@ -254,12 +256,15 @@ let typeInferenceUnion (program : Anf.program) =
     UnionFind.make_set func_signature;
     let func = entityType_of_entity (Function name) in
     UnionFind.make_set func;
-    UnionFind.union func func_signature
+    UnionFind.union func func_signature;
+
+    ret
   in
 
   (* adding function signatures before processing bodies *)
-  List.iter add_function_signature program;
-  List.iter infer_types_of_function program
+  let ret_typeVars = List.map add_function_signature program in
+  let ret_types = List.map infer_types_of_function program in
+  List.iter2 unify ret_typeVars ret_types
 
 let infer (program : Anf.program) : Typed_anf.program =
   typeInferenceUnion program;
@@ -284,7 +289,11 @@ let infer (program : Anf.program) : Typed_anf.program =
         Typed_anf.stmts;
         Typed_anf.ret_expr;
         Typed_anf.return_type =
-          UnionFind.find (TypeVar (typevar_of_entity (Function name)));
+          (match
+             UnionFind.find (TypeVar (typevar_of_entity (Function name)))
+           with
+          | Arrow (_, return_type) -> UnionFind.find return_type
+          | _ -> failwith "internal error: function type is not Arrow");
         Typed_anf.temporary_vars =
           List.map (fun t ->
               ( t,
