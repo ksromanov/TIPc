@@ -165,7 +165,7 @@ let typeInferenceUnion (program : Anf.program) =
       | Id ident -> entityType_of_ident ident
       | Anf.Null -> Pointer Int (* FIXME: add "new_typevar" *)
     in
-    let infer_type_of_complex_expression = function
+    let rec infer_type_of_complex_expression = function
       | Binop (a, _, b) ->
           unify
             (infer_type_of_atomic_expression a)
@@ -174,6 +174,11 @@ let typeInferenceUnion (program : Anf.program) =
       | Input -> Int
       | Apply (Temporary _, _) ->
           failwith "internal error: Apply of temporary variable"
+          (* FIXME: workaround for Apply looking like ComputedApply - make a pass after parsing...
+             Also remove rec above *)
+      | Apply (Ident f_ident, args)
+        when List.exists (List.mem f_ident) var_blocks ->
+          infer_type_of_complex_expression (ComputedApply (Ident f_ident, args))
       | Apply (Ident f_ident, _)
         when not (List.exists (fun { Anf.name; _ } -> name = f_ident) program)
         ->
