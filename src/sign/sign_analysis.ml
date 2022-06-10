@@ -4,6 +4,16 @@
    Bottom — invalid state, i.e. no value, analog of NaN
    Top — any number, either positive or negative *)
 type sign_lattice = Bottom | Positive | Negative | Zero | Top
+[@@deriving show]
+
+let join a b =
+  match (a, b) with
+  | Bottom, b -> b
+  | a, Bottom -> a
+  | Top, _ -> Top
+  | _, Top -> Top
+  | _, _ when a = b -> a
+  | _, _ -> Top
 
 let eval_binop (op : Anf.binop) (a : sign_lattice) (b : sign_lattice) =
   (* Processing only "real" numbers 9x9 lattice *)
@@ -85,28 +95,27 @@ let analyze (program : Typed_anf.program) =
   let analyse_atomic_expression state_map = function
     | Int 0 -> Zero
     | Int n when n > 0 -> Positive
-    | Int n when n < 0 -> Negative
+    | Int _ -> Negative (* n < 0, however typechecker can't infer it *)
     | Id ident -> Hashtbl.find state_map ident
     | Null -> Top
   in
 
+  (* Here we analyze only binary operations! *)
   let analyse_complex_expression state_map = function
     | Anf.Binop (a, op, b) ->
         eval_binop op
           (analyse_atomic_expression state_map a)
           (analyse_atomic_expression state_map b)
     | Anf.Input -> Top
-    (*
-  | Anf.Apply of ident * atomic_expression list
-  | Anf.ComputedApply of ident * atomic_expression list
-  | Anf.Alloc of atomic_expression
-  | Anf.Reference of ident
-  | Anf.DeReference of atomic_expression
-  | Anf.Record of record
-  | Anf.FieldRead of atomic_expression * ident
-    failwith "complex expression unimplemented"
-*)
+    | Anf.Apply _ -> Top
+    | Anf.ComputedApply _ -> Top
+    | Anf.Alloc _ -> Top
+    | Anf.Reference _ -> Top
+    | Anf.DeReference _ -> Top
+    | Anf.Record _ -> Top
+    | Anf.FieldRead _ -> Top
   in
+
   (* Analyze statement, returning updated result *)
   let rec analyze_statement type_map ((state_map, states) as result) = function
     | Anf.Assignment (ident, Complex expr) as stmt ->
@@ -117,7 +126,7 @@ let analyze (program : Typed_anf.program) =
         (state_map, (stmt, Hashtbl.copy state_map) :: states)
     | Anf.Output _ -> result (* Nothing to do *)
     | Anf.Error _ -> result
-    | Anf.If (cond, thn, els) -> (
+    | Anf.If (cond, thn, els) as stmt -> (
         match analyse_atomic_expression state_map cond with
         | Positive | Negative -> analyze_statement type_map result thn
         | Zero ->
@@ -128,9 +137,27 @@ let analyze (program : Typed_anf.program) =
             match els with
             | None -> analyze_statement type_map result thn
             | Some els ->
-                let thn_result = analyze_statement type_map result thn in
-                let els_result = analyze_statement type_map result els in
-                failwith "JOIN is not yet implemented"))
+                let thn_state_map = Hashtbl.copy state_map in
+                let els_state_map = Hashtbl.copy state_map in
+                let thn_result =
+                  analyze_statement type_map (thn_state_map, snd result) thn
+                in
+                let els_result =
+                  analyze_statement type_map (els_state_map, snd result) els
+                in
+                (* Not very clean join - we are dropping branches! *)
+                let joint_state_map =
+                  Hashtbl.of_seq
+                  @@ Seq.map2
+                       (fun (a_key, a_state) (b_key, b_state) ->
+                         if a_key <> b_key then
+                           failwith "Keys are different in Join then and else"
+                         else (a_key, join a_state b_state))
+                       (Hashtbl.to_seq thn_state_map)
+                       (Hashtbl.to_seq els_state_map)
+                in
+                ( joint_state_map,
+                  (stmt, Hashtbl.copy joint_state_map) :: snd result )))
     | Anf.While (cond, body)
       when analyse_atomic_expression state_map cond = Zero ->
         result (* skipping, since condition does not let us enter the loop!!! *)
