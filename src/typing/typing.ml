@@ -144,7 +144,7 @@ let typeInferenceUnion (program : Anf.program) =
   let make_typevar e = void @@ entityType_of_entity e in
 
   let infer_types_of_function
-      ({ name; args; var_blocks; stmts; ret_expr } : Anf.func) =
+      ({ name; (*args;*) var_blocks; stmts; ret_expr; _ } : Anf.func) =
     let module VarSet = Set.Make (String) in
     (* Names from variable block to allow "shadowing" of arguments *)
     let declared_var_names =
@@ -202,9 +202,10 @@ let typeInferenceUnion (program : Anf.program) =
           ret_type
       | Alloc expr -> Pointer (infer_type_of_atomic_expression expr)
       | Reference ident -> Pointer (entityType_of_ident ident)
-      | DeReference expr -> failwith "internal error: unreachable"
-      | Record r -> failwith "record is not yet implemented"
-      | FieldRead (Id r, field) -> failwith "Field read is not implemented"
+      | DeReference _ -> failwith "internal error: unreachable"
+      | Record (*r*) _ -> failwith "record is not yet implemented"
+      | FieldRead (Id (*r*) _, (*field*) _) ->
+          failwith "Field read is not implemented"
       | FieldRead (_, _) -> failwith "Attempt to read non-record"
     in
     let infer_types_of_expression = function
@@ -237,7 +238,7 @@ let typeInferenceUnion (program : Anf.program) =
       | Store (ident, expr) ->
           let exprType = infer_types_of_expression expr in
           unify (entityType_of_ident ident) (Pointer exprType)
-      | DirectRecordWrite (record, field, expr) ->
+      | DirectRecordWrite (*record, field, expr*) _ ->
           failwith "DirectRecordWrite unimplemented"
       | Block stmts -> List.iter infer_types_of_statement stmts
     in
