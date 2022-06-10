@@ -79,4 +79,106 @@ let eval_binop (op : Anf.binop) (a : sign_lattice) (b : sign_lattice) =
       | Anf.Greater, _, _ -> greater a b
       | Anf.Equal, _, _ -> equal a b)
 
-let analyze (_ : Typed_anf.program) = failwith "Unimplemented"
+let analyze (program : Typed_anf.program) =
+  let open Typed_anf in
+  let open Anf in
+  let analyse_atomic_expression state_map = function
+    | Int 0 -> Zero
+    | Int n when n > 0 -> Positive
+    | Int n when n < 0 -> Negative
+    | Id ident -> Hashtbl.find state_map ident
+    | Null -> Top
+  in
+
+  let analyse_complex_expression state_map = function
+    | Anf.Binop (a, op, b) ->
+        eval_binop op
+          (analyse_atomic_expression state_map a)
+          (analyse_atomic_expression state_map b)
+    | Anf.Input -> Top
+    (*
+  | Anf.Apply of ident * atomic_expression list
+  | Anf.ComputedApply of ident * atomic_expression list
+  | Anf.Alloc of atomic_expression
+  | Anf.Reference of ident
+  | Anf.DeReference of atomic_expression
+  | Anf.Record of record
+  | Anf.FieldRead of atomic_expression * ident
+    failwith "complex expression unimplemented"
+*)
+  in
+  (* Analyze statement, returning updated result *)
+  let rec analyze_statement type_map ((state_map, states) as result) = function
+    | Anf.Assignment (ident, Complex expr) as stmt ->
+        Hashtbl.add state_map ident (analyse_complex_expression state_map expr);
+        (state_map, (stmt, Hashtbl.copy state_map) :: states)
+    | Anf.Assignment (ident, Atomic expr) as stmt ->
+        Hashtbl.add state_map ident (analyse_atomic_expression state_map expr);
+        (state_map, (stmt, Hashtbl.copy state_map) :: states)
+    | Anf.Output _ -> result (* Nothing to do *)
+    | Anf.Error _ -> result
+    | Anf.If (cond, thn, els) -> (
+        match analyse_atomic_expression state_map cond with
+        | Positive | Negative -> analyze_statement type_map result thn
+        | Zero ->
+            Option.value
+              (Option.map (analyze_statement type_map result) els)
+              ~default:result
+        | Top -> (
+            match els with
+            | None -> analyze_statement type_map result thn
+            | Some els ->
+                let thn_result = analyze_statement type_map result thn in
+                let els_result = analyze_statement type_map result els in
+                failwith "JOIN is not yet implemented"))
+    | Anf.While (cond, body)
+      when analyse_atomic_expression state_map cond = Zero ->
+        result (* skipping, since condition does not let us enter the loop!!! *)
+    | Anf.While (_, _) -> failwith "unimplemented"
+    | Anf.Store _ -> result (* pointers are not yet considered! *)
+    | Anf.DirectRecordWrite _ -> result (* unimplemented *)
+    | Anf.Block body -> List.fold_left (analyze_statement type_map) result body
+  in
+  let analyze
+      {
+        name : string;
+        args : (argument * entityType) list;
+        var_blocks : (string * entityType) list list;
+        stmts : statement list;
+        ret_expr : atomic_expression;
+        (* Additional type information *)
+        return_type : entityType;
+        temporary_vars : (int * entityType) list;
+      } =
+    let initial_state_map, type_map =
+      let reserve_length =
+        List.length args
+        + (List.fold_left ( + ) 0 @@ List.map List.length var_blocks)
+        + List.length temporary_vars
+      in
+      let state_map, type_map =
+        (Hashtbl.create reserve_length, Hashtbl.create reserve_length)
+      in
+
+      List.iter
+        (fun (e, typ) ->
+          Hashtbl.add state_map e Top;
+          Hashtbl.add type_map e typ)
+        args;
+      List.iter
+        (List.iter (fun (v, typ) ->
+             Hashtbl.add state_map (Ident v) Top;
+             Hashtbl.add type_map (Ident v) typ))
+        var_blocks;
+      List.iter
+        (fun (t, typ) ->
+          Hashtbl.add state_map (Temporary t) Top;
+          Hashtbl.add type_map (Temporary t) typ)
+        temporary_vars;
+      (state_map, type_map)
+    in
+    ( name,
+      List.fold_left (analyze_statement type_map) (initial_state_map, []) stmts
+    )
+  in
+  List.map analyze program
