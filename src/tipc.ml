@@ -15,6 +15,7 @@ let parse filename =
   let typed_anf_program = Typing.infer anf_program in
   Printf.printf "Typed ANF form: %s\n"
     (Typed_anf.show_program typed_anf_program);
+  let _ = Sign_analysis.analyze typed_anf_program in
   ()
 
 let _ =
