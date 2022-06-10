@@ -18,3 +18,7 @@ in `src/anf/anf_of_parsetree.ml`. TODO: write ANF interpreter.
 3. Damas-Hindley-Milner type inference - `src/typing`.
 TODO: write an intermediate representation + integrate into
 interpreter.
+
+4. Static analysis — sign analysis using monotone framework,
+runs after type inference using typed-ANF language. The analysis
+is limited to integers only.
