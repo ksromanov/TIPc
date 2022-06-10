@@ -6,6 +6,10 @@
 type sign_lattice = Bottom | Positive | Negative | Zero | Top
 [@@deriving show]
 
+type sign_analysis_t =
+  string * (Anf.statement * (Anf.ident * sign_lattice) list) list
+[@@deriving show]
+
 let join a b =
   match (a, b) with
   | Bottom, b -> b
@@ -89,7 +93,8 @@ let eval_binop (op : Anf.binop) (a : sign_lattice) (b : sign_lattice) =
       | Anf.Greater, _, _ -> greater a b
       | Anf.Equal, _, _ -> equal a b)
 
-let analyze (program : Typed_anf.program) =
+(* Main entry-point of the pass *)
+let analyze (program : Typed_anf.program) : sign_analysis_t list =
   let open Typed_anf in
   let open Anf in
   let analyse_atomic_expression state_map = function
@@ -166,7 +171,7 @@ let analyze (program : Typed_anf.program) =
     | Anf.DirectRecordWrite _ -> result (* unimplemented *)
     | Anf.Block body -> List.fold_left (analyze_statement type_map) result body
   in
-  let analyze
+  let analyze_function
       {
         name : string;
         args : (argument * entityType) list;
@@ -176,7 +181,7 @@ let analyze (program : Typed_anf.program) =
         (* Additional type information *)
         return_type : entityType;
         temporary_vars : (int * entityType) list;
-      } =
+      } : sign_analysis_t =
     let initial_state_map, type_map =
       let reserve_length =
         List.length args
@@ -204,8 +209,15 @@ let analyze (program : Typed_anf.program) =
         temporary_vars;
       (state_map, type_map)
     in
+    let statement_results =
+      snd
+        (List.fold_left
+           (analyze_statement type_map)
+           (initial_state_map, []) stmts)
+    in
     ( name,
-      List.fold_left (analyze_statement type_map) (initial_state_map, []) stmts
-    )
+      List.map
+        (fun (stmt, signs) -> (stmt, List.of_seq @@ Hashtbl.to_seq signs))
+        statement_results )
   in
-  List.map analyze program
+  List.map analyze_function program
