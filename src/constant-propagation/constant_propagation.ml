@@ -83,7 +83,24 @@ let analyze_function
         (state, stmt)
     | Anf.Output atomic_expr -> (state, Anf.Output atomic_expr)
     | Anf.Error atomic_expr -> (state, Anf.Error atomic_expr)
-    | Anf.If (cond, thn, els) -> failwith ""
+    | Anf.If (cond, thn, Some els) -> (
+        match analyse_atomic_expression state cond with
+        | Top | Bottom ->
+            let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
+            let els_state, els = analyze_statement (Hashtbl.copy state) els in
+            (thn_state, Anf.If (cond, thn, Some els))
+        | Value 0 ->
+            let els_state, els = analyze_statement state els in
+            (els_state, Anf.If (Int 0, thn, Some els))
+        | Value v ->
+            let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
+            (thn_state, Anf.If (Int v, thn, Some els)))
+    | Anf.If (cond, thn, None) -> (
+        let cond_value = analyse_atomic_expression state cond in
+        let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
+        match cond_value with
+        | Top | Bottom -> (thn_state, Anf.If (cond, thn, None))
+        | Value v -> (thn_state, Anf.If (Int v, thn, None)))
     | Anf.While (cond, body) -> (
         match analyse_atomic_expression state cond with
         | Value 0 -> (state, Anf.While (Int 0, body))
