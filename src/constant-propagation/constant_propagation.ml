@@ -75,9 +75,12 @@ let analyze_function
 
   let rec analyze_statement state stmt =
     match stmt with
-    | Anf.Assignment (id, Complex expr) as stmt ->
-        Hashtbl.add state id (analyse_complex_expression state expr);
-        (state, stmt)
+    | Anf.Assignment (id, Complex expr) as stmt -> (
+        let expr_lattice = analyse_complex_expression state expr in
+        Hashtbl.add state id expr_lattice;
+        match expr_lattice with
+        | Top | Bottom -> (state, stmt)
+        | Value v -> (state, Anf.Assignment (id, Atomic (Anf.Int v))))
     | Anf.Assignment (id, Atomic expr) as stmt ->
         Hashtbl.add state id (analyse_atomic_expression state expr);
         (state, stmt)
@@ -125,7 +128,12 @@ let analyze_function
     Hashtbl.create (List.length args)
   in
   let state, stmtsi = List.fold_left_map analyze_statement state stmts in
-  { f with Typed_anf.stmts = stmtsi }
+  let ret_expri =
+    match analyse_atomic_expression state ret_expr with
+    | Top | Bottom -> ret_expr
+    | Value v -> Int v
+  in
+  { f with Typed_anf.stmts = stmtsi; Typed_anf.ret_expr = ret_expri }
 
 (* Main entry-point of the pass *)
 let analyze (program : Typed_anf.program) : Typed_anf.program =
