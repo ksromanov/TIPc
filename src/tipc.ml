@@ -21,6 +21,7 @@ let parse filename =
     (fun signs ->
       Printf.printf "%s\n" (Sign_analysis.show_sign_analysis_t signs))
     result;
+  let _ = Constant_propagation.analyze typed_anf_program in
   ()
 
 let _ =
