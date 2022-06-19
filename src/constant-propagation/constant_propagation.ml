@@ -53,17 +53,14 @@ let fix_point f state stmts =
   in
   iter state
 
-(* *)
+(* Each function is analyzed separately + we have some
+   limitations, concerning pointers and records. I.e. int-only approximation. *)
 let analyze_function
     ({
-       Typed_anf.name : string;
        Typed_anf.args : (Anf.argument * Typed_anf.entityType) list;
-       Typed_anf.var_blocks : (string * Typed_anf.entityType) list list;
        Typed_anf.stmts : Anf.statement list;
        Typed_anf.ret_expr : Anf.atomic_expression;
-       (* Additional type information *)
-       Typed_anf.return_type : Typed_anf.entityType;
-       Typed_anf.temporary_vars : (int * Typed_anf.entityType) list;
+       _;
      } as f) =
   let analyse_atomic_expression state_map = function
     | Anf.Int n -> Value n
