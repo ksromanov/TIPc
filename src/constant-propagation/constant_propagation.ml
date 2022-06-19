@@ -62,18 +62,18 @@ let analyze_function
        Typed_anf.ret_expr : Anf.atomic_expression;
        _;
      } as f) =
-  let analyse_atomic_expression state_map = function
+  let analyze_atomic_expression state_map = function
     | Anf.Int n -> Value n
     | Id ident -> Hashtbl.find state_map ident
     | Null -> Top
   in
 
   (* Here we analyze only binary operations! *)
-  let analyse_complex_expression state_map = function
+  let analyze_complex_expression state_map = function
     | Anf.Binop (a, op, b) ->
         eval_binop op
-          (analyse_atomic_expression state_map a)
-          (analyse_atomic_expression state_map b)
+          (analyze_atomic_expression state_map a)
+          (analyze_atomic_expression state_map b)
     | Anf.Input -> Top
     | Anf.Apply _ -> Top
     | Anf.ComputedApply _ -> Top
@@ -87,18 +87,18 @@ let analyze_function
   let rec analyze_statement state stmt =
     match stmt with
     | Anf.Assignment (id, Complex expr) as stmt -> (
-        let expr_lattice = analyse_complex_expression state expr in
+        let expr_lattice = analyze_complex_expression state expr in
         Hashtbl.add state id expr_lattice;
         match expr_lattice with
         | Top | Bottom -> (state, stmt)
         | Value v -> (state, Anf.Assignment (id, Atomic (Anf.Int v))))
     | Anf.Assignment (id, Atomic expr) as stmt ->
-        Hashtbl.add state id (analyse_atomic_expression state expr);
+        Hashtbl.add state id (analyze_atomic_expression state expr);
         (state, stmt)
     | Anf.Output atomic_expr -> (state, Anf.Output atomic_expr)
     | Anf.Error atomic_expr -> (state, Anf.Error atomic_expr)
     | Anf.If (cond, thn, Some els) -> (
-        match analyse_atomic_expression state cond with
+        match analyze_atomic_expression state cond with
         | Top | Bottom ->
             let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
             let els_state, els = analyze_statement (Hashtbl.copy state) els in
@@ -110,13 +110,13 @@ let analyze_function
             let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
             (thn_state, Anf.If (Int v, thn, Some els)))
     | Anf.If (cond, thn, None) -> (
-        let cond_value = analyse_atomic_expression state cond in
+        let cond_value = analyze_atomic_expression state cond in
         let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
         match cond_value with
         | Top | Bottom -> (thn_state, Anf.If (cond, thn, None))
         | Value v -> (thn_state, Anf.If (Int v, thn, None)))
     | Anf.While (cond, body) -> (
-        match analyse_atomic_expression state cond with
+        match analyze_atomic_expression state cond with
         | Value 0 -> (state, Anf.While (Int 0, body))
         | _ ->
             (* running overestimation *)
@@ -140,7 +140,7 @@ let analyze_function
   in
   let state, stmtsi = List.fold_left_map analyze_statement state stmts in
   let ret_expri =
-    match analyse_atomic_expression state ret_expr with
+    match analyze_atomic_expression state ret_expr with
     | Top | Bottom -> ret_expr
     | Value v -> Int v
   in

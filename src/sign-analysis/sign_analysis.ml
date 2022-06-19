@@ -98,7 +98,7 @@ let eval_binop (op : Anf.binop) (a : sign_lattice) (b : sign_lattice) =
 let analyze (program : Typed_anf.program) : sign_analysis_t list =
   let open Typed_anf in
   let open Anf in
-  let analyse_atomic_expression state_map = function
+  let analyze_atomic_expression state_map = function
     | Int 0 -> Zero
     | Int n when n > 0 -> Positive
     | Int _ -> Negative (* n < 0, however typechecker can't infer it *)
@@ -107,11 +107,11 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
   in
 
   (* Here we analyze only binary operations! *)
-  let analyse_complex_expression state_map = function
+  let analyze_complex_expression state_map = function
     | Anf.Binop (a, op, b) ->
         eval_binop op
-          (analyse_atomic_expression state_map a)
-          (analyse_atomic_expression state_map b)
+          (analyze_atomic_expression state_map a)
+          (analyze_atomic_expression state_map b)
     | Anf.Input -> Top
     | Anf.Apply _ -> Top
     | Anf.ComputedApply _ -> Top
@@ -125,15 +125,15 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
   (* Analyze statement, returning updated result *)
   let rec analyze_statement type_map ((state_map, states) as result) = function
     | Anf.Assignment (ident, Complex expr) as stmt ->
-        Hashtbl.add state_map ident (analyse_complex_expression state_map expr);
+        Hashtbl.add state_map ident (analyze_complex_expression state_map expr);
         (state_map, (stmt, Hashtbl.copy state_map) :: states)
     | Anf.Assignment (ident, Atomic expr) as stmt ->
-        Hashtbl.add state_map ident (analyse_atomic_expression state_map expr);
+        Hashtbl.add state_map ident (analyze_atomic_expression state_map expr);
         (state_map, (stmt, Hashtbl.copy state_map) :: states)
     | Anf.Output _ -> result (* Nothing to do *)
     | Anf.Error _ -> result
     | Anf.If (cond, thn, els) as stmt -> (
-        match analyse_atomic_expression state_map cond with
+        match analyze_atomic_expression state_map cond with
         | Positive | Negative -> analyze_statement type_map result thn
         | Zero ->
             Option.value
@@ -163,7 +163,7 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
                 in
                 ( joint_state_map,
                   (stmt, Hashtbl.copy joint_state_map) :: snd result )))
-    | Anf.While (cond, _) when analyse_atomic_expression state_map cond = Zero
+    | Anf.While (cond, _) when analyze_atomic_expression state_map cond = Zero
       ->
         result (* skipping, since condition does not let us enter the loop!!! *)
     | Anf.While (_, _) -> failwith "unimplemented"
@@ -216,6 +216,6 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
       List.rev_map
         (fun (stmt, signs) -> (stmt, List.of_seq @@ Hashtbl.to_seq signs))
         statement_results,
-      analyse_atomic_expression final_state ret_expr )
+      analyze_atomic_expression final_state ret_expr )
   in
   List.map analyze_function program
