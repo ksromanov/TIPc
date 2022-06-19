@@ -12,6 +12,19 @@ let join a b =
   | Top, _ | _, Top -> Top
   | Value a, Value b -> if a = b then Value a else Top
 
+(* Joining Hashmaps using join above *)
+let join_states a b =
+  let merge_into result a =
+    Seq.iter (fun (k, v) ->
+        Hashtbl.add result k
+          (join v @@ Option.value ~default:Bottom (Hashtbl.find_opt result k)))
+    @@ Hashtbl.to_seq a
+  in
+  let result = Hashtbl.create 10 in
+  merge_into result a;
+  merge_into result b;
+  result
+
 (* Transfer function for binary operation *)
 let eval_binop (op : Anf.binop) (a : constant_lattice) (b : constant_lattice) :
     constant_lattice =
@@ -35,7 +48,8 @@ let eval_binop (op : Anf.binop) (a : constant_lattice) (b : constant_lattice) :
 let fix_point f state stmts =
   let rec iter state =
     let new_state, stmts = f (Hashtbl.copy state, stmts) in
-    if new_state <> state then iter new_state else (new_state, stmts)
+    if new_state <> state then iter (join_states state new_state)
+    else (new_state, stmts)
   in
   iter state
 
@@ -91,7 +105,7 @@ let analyze_function
         | Top | Bottom ->
             let thn_state, thn = analyze_statement (Hashtbl.copy state) thn in
             let els_state, els = analyze_statement (Hashtbl.copy state) els in
-            (thn_state, Anf.If (cond, thn, Some els))
+            (join_states thn_state els_state, Anf.If (cond, thn, Some els))
         | Value 0 ->
             let els_state, els = analyze_statement state els in
             (els_state, Anf.If (Int 0, thn, Some els))
