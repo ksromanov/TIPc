@@ -216,7 +216,7 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
            (initial_state_map, []) stmts)
     in
     ( name,
-      List.map
+      List.rev_map
         (fun (stmt, signs) -> (stmt, List.of_seq @@ Hashtbl.to_seq signs))
         statement_results )
   in
