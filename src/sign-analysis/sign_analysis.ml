@@ -139,19 +139,18 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
             Option.value
               (Option.map (analyze_statement type_map result) els)
               ~default:result
-        | Top -> (
+        | Top | Bottom -> (
             match els with
             | None -> analyze_statement type_map result thn
             | Some els ->
                 let thn_state_map = Hashtbl.copy state_map in
                 let els_state_map = Hashtbl.copy state_map in
-                let thn_result =
+                let _ =
                   analyze_statement type_map (thn_state_map, snd result) thn
                 in
-                let els_result =
+                let _ =
                   analyze_statement type_map (els_state_map, snd result) els
                 in
-                (* Not very clean join - we are dropping branches! *)
                 let joint_state_map =
                   Hashtbl.of_seq
                   @@ Seq.map2
@@ -164,8 +163,8 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
                 in
                 ( joint_state_map,
                   (stmt, Hashtbl.copy joint_state_map) :: snd result )))
-    | Anf.While (cond, body)
-      when analyse_atomic_expression state_map cond = Zero ->
+    | Anf.While (cond, _) when analyse_atomic_expression state_map cond = Zero
+      ->
         result (* skipping, since condition does not let us enter the loop!!! *)
     | Anf.While (_, _) -> failwith "unimplemented"
     | Anf.Store _ -> result (* pointers are not yet considered! *)
@@ -180,8 +179,8 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
         stmts : statement list;
         ret_expr : atomic_expression;
         (* Additional type information *)
-        return_type : entityType;
         temporary_vars : (int * entityType) list;
+        _;
       } : sign_analysis_t =
     let initial_state_map, type_map =
       let reserve_length =
