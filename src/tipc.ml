@@ -26,7 +26,13 @@ let parse filename =
   in
   Printf.printf "Typed ANF form after constant propagation: %s\n"
     (Typed_anf.show_program typed_anf_program_after_constprop);
-  let _ = Available_expressions.analyze typed_anf_program in
+  let available_expressions = Available_expressions.analyze typed_anf_program in
+  Printf.printf "Available expressions:\n";
+  List.iter
+    (fun e ->
+      Printf.printf "%s\n"
+        (Available_expressions.show_available_expressions_t e))
+    available_expressions;
   ()
 
 let _ =
