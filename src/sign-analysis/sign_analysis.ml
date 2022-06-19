@@ -6,8 +6,9 @@
 type sign_lattice = Bottom | Positive | Negative | Zero | Top
 [@@deriving show]
 
+(* Name of the function, signs of all ids for all statements, return expression sign *)
 type sign_analysis_t =
-  string * (Anf.statement * (Anf.ident * sign_lattice) list) list
+  string * (Anf.statement * (Anf.ident * sign_lattice) list) list * sign_lattice
 [@@deriving show]
 
 let join a b =
@@ -209,15 +210,13 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
         temporary_vars;
       (state_map, type_map)
     in
-    let statement_results =
-      snd
-        (List.fold_left
-           (analyze_statement type_map)
-           (initial_state_map, []) stmts)
+    let final_state, statement_results =
+      List.fold_left (analyze_statement type_map) (initial_state_map, []) stmts
     in
     ( name,
       List.rev_map
         (fun (stmt, signs) -> (stmt, List.of_seq @@ Hashtbl.to_seq signs))
-        statement_results )
+        statement_results,
+      analyse_atomic_expression final_state ret_expr )
   in
   List.map analyze_function program
