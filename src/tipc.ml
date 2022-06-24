@@ -33,6 +33,7 @@ let parse filename =
       Printf.printf "%s\n"
         (Available_expressions.show_available_expressions_t e))
     available_expressions;
+  let _ = Very_busy_expressions.analyze typed_anf_program in
   ()
 
 let _ =
