@@ -11,3 +11,6 @@ _build/
 **/*.merlinn
 
 examples
+*.tip
+results
+tipc
