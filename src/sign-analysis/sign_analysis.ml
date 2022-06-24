@@ -166,7 +166,7 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
     | Anf.While (cond, _) when analyze_atomic_expression state_map cond = Zero
       ->
         result (* skipping, since condition does not let us enter the loop!!! *)
-    | Anf.While (_, _) -> failwith "unimplemented"
+    | Anf.While (_, _) -> failwith "Sign_analysis: unimplemented"
     | Anf.Store _ -> result (* pointers are not yet considered! *)
     | Anf.DirectRecordWrite _ -> result (* unimplemented *)
     | Anf.Block body -> List.fold_left (analyze_statement type_map) result body
