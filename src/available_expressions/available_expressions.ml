@@ -44,14 +44,14 @@ let analyze_function
     | Anf.Assignment (_, Atomic _) as stmt -> (state, (stmt, state))
     | Anf.Output _ as stmt -> (state, (stmt, state))
     | Anf.Error _ as stmt -> (state, (stmt, state))
-    | Anf.If (cond, thn, Some els) ->
+    | Anf.If (_, thn, Some els) as ifstmt ->
         (* only then statement *)
         let thn_state, (_, _) = analyze_statement state thn in
         let els_state, (_, _) = analyze_statement state els in
-        (S_expressions.union thn_state els_state, (thn, state))
-    | Anf.If (_, thn, None) as stmt -> (state, (stmt, state))
+        (S_expressions.union thn_state els_state, (ifstmt, state))
+    | Anf.If (_, _, None) as stmt -> (state, (stmt, state))
     (* cond is atomic => we do not add it *)
-    | Anf.While (cond, body) as stmt -> (state, (stmt, state))
+    | Anf.While _ as stmt -> (state, (stmt, state))
     | Anf.Store _ as stmt ->
         (state, (stmt, state) (* we are not working with pointers here *))
     | Anf.DirectRecordWrite _ as stmt -> (state, (stmt, state))
