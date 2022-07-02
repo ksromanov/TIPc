@@ -45,8 +45,6 @@ type func = {
 }
 [@@deriving show]
 
-type program = func list [@@deriving show]
-
 (* Add default payload to the tree *)
 let rec preset_statement : Anf.statement -> statement =
   let payload = S_expressions.empty in
@@ -145,6 +143,7 @@ type busy_statement =
   | Block of busy_statement list
 [@@deriving show]
 
+(* Deriving busy flag based on the accumulated statements. *)
 let rec derive_busy_flags : statement -> busy_statement =
   let is_busy state = function
     | Anf.Complex expr when S_expressions.mem expr state -> Busy
@@ -162,5 +161,10 @@ let rec derive_busy_flags : statement -> busy_statement =
       DirectRecordWrite (r, f, expr, is_busy state expr)
   | Block body -> Block (List.map derive_busy_flags body)
 
-let analyze (program : Typed_anf.program) : program =
-  List.map analyze_function program
+type result = (string * busy_statement list) list [@@deriving show]
+
+let analyze (program : Typed_anf.program) : result =
+  let analysis_results = List.map analyze_function program in
+  List.map
+    (fun f -> (f.name, List.map derive_busy_flags f.stmts))
+    analysis_results
