@@ -82,17 +82,17 @@ let analyze_function
   (* We deal only with complex expressions. *)
   let rec analyze_statement previous_state = function
     (* remove all expressions, which contain the id *)
-    | Assignment (id, Complex expr, payload) ->
+    | Assignment (id, Complex expr, _) ->
         let state' = S_expressions.add expr @@ remove_id id previous_state in
         (state', Assignment (id, Complex expr, previous_state))
-    | Assignment (id, Atomic expr, payload) ->
+    | Assignment (id, Atomic expr, _) ->
         let state' = remove_id id previous_state in
         (state', Assignment (id, Atomic expr, previous_state))
-    | Output (atomic_expr, payload) ->
+    | Output (atomic_expr, _) ->
         (previous_state, Output (atomic_expr, previous_state))
-    | Error (atomic_expr, payload) ->
+    | Error (atomic_expr, _) ->
         (previous_state, Error (atomic_expr, previous_state))
-    | If (cond, thn, els, payload) ->
+    | If (cond, thn, els, _) ->
         let thn_state, thn = analyze_statement previous_state thn in
         let els_state, els =
           match Option.map (analyze_statement previous_state) els with
@@ -101,14 +101,14 @@ let analyze_function
         in
         ( S_expressions.inter thn_state els_state,
           If (cond, thn, els, previous_state) )
-    | While (cond, body, payload) ->
+    | While (cond, body, _) ->
+        (* FIXME: add fixpoint *)
         let state, body =
           List.fold_left_map analyze_statement previous_state body
         in
         (state, While (cond, body, previous_state))
-    | Store (id, expr, payload) ->
-        (previous_state, Store (id, expr, previous_state))
-    | DirectRecordWrite (r, field, expr, payload) ->
+    | Store (id, expr, _) -> (previous_state, Store (id, expr, previous_state))
+    | DirectRecordWrite (r, field, expr, _) ->
         (previous_state, DirectRecordWrite (r, field, expr, previous_state))
     | Block body ->
         let state, body =
