@@ -20,7 +20,6 @@ let filter_out_variable id =
       | _ -> false)
 
 (* Resulting type of the expression *)
-type busy_t = Busy | Regular [@@deriving show]
 type payload = S_expressions.t [@@deriving show]
 
 type statement =
@@ -129,6 +128,39 @@ let analyze_function
       @@ List.map preset_statement stmts;
     ret_expr;
   }
+
+type busy = Busy | Regular [@@deriving show]
+
+type busy_statement =
+  | Assignment of Anf.ident * Anf.expression * busy
+  | Output of Anf.atomic_expression
+  | Error of Anf.atomic_expression
+  | If of Anf.atomic_expression * busy_statement * busy_statement option
+  | While of Anf.atomic_expression * busy_statement list
+  | Store of
+      Anf.ident
+      * Anf.expression (* Store value in a memory cell referenced by pointer *)
+      * busy
+  | DirectRecordWrite of Anf.ident * Anf.ident * Anf.expression * busy
+  | Block of busy_statement list
+[@@deriving show]
+
+let rec derive_busy_flags : statement -> busy_statement =
+  let is_busy state = function
+    | Anf.Complex expr when S_expressions.mem expr state -> Busy
+    | _ -> Regular
+  in
+  function
+  | Assignment (id, expr, state) -> Assignment (id, expr, is_busy state expr)
+  | Output (expr, _) -> Output expr
+  | Error (expr, _) -> Error expr
+  | If (cond, thn, els, _) ->
+      If (cond, derive_busy_flags thn, Option.map derive_busy_flags els)
+  | While (cond, body, _) -> While (cond, List.map derive_busy_flags body)
+  | Store (id, expr, state) -> Store (id, expr, is_busy state expr)
+  | DirectRecordWrite (r, f, expr, state) ->
+      DirectRecordWrite (r, f, expr, is_busy state expr)
+  | Block body -> Block (List.map derive_busy_flags body)
 
 let analyze (program : Typed_anf.program) : program =
   List.map analyze_function program
