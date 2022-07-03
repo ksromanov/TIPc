@@ -61,8 +61,17 @@ let rec preset_statement : Anf.statement -> statement =
       DirectRecordWrite (r, field, expr, payload)
   | Anf.Block body -> Block (List.map preset_statement body)
 
-(* Вопрос - как сделать 0-е приближение, а потом делать нормальный
-   worklist алгоритм *)
+(* Fixed point algorithm more/less generic *)
+let fix_point f state stmts =
+  let rec iter state =
+    let new_state, stmts = f state stmts in
+    if new_state <> state then iter (S_expressions.inter state new_state)
+    else (new_state, stmts)
+  in
+  iter state
+
+(* Create an approximation to currently available expressions
+   without an account for pointers/records. *)
 let analyze_function
     {
       Typed_anf.name : string;
@@ -104,7 +113,7 @@ let analyze_function
     | While (cond, body, _) ->
         (* FIXME: add fixpoint *)
         let state, body =
-          List.fold_left_map analyze_statement previous_state body
+          fix_point (List.fold_left_map analyze_statement) previous_state body
         in
         (state, While (cond, body, previous_state))
     | Store (id, expr, _) -> (previous_state, Store (id, expr, previous_state))
