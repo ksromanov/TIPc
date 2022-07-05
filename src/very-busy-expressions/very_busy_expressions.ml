@@ -58,7 +58,8 @@ let rec preset_statement : Anf.statement -> statement =
 let fix_point f state stmts =
   let rec iter state =
     let new_state, stmts = f state stmts in
-    if new_state <> state then iter (S_expressions.inter state new_state)
+    if not (S_expressions.equal new_state state) then
+      iter (S_expressions.union state new_state)
     else (new_state, stmts)
   in
   iter state
