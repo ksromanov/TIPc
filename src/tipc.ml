@@ -33,8 +33,16 @@ let parse filename =
       Printf.printf "%s\n"
         (Available_expressions.show_available_expressions_t e))
     available_expressions;
-  let _ = Very_busy_expressions.analyze typed_anf_program in
-  ()
+  let very_busy_expressions = Very_busy_expressions.analyze typed_anf_program in
+  Printf.printf "Very busy expressions:\n";
+  List.iter
+    (fun (name, stmts) ->
+      Printf.printf "Function %s:\n" name;
+      List.iter
+        (fun s ->
+          Printf.printf "%s\n" (Very_busy_expressions.show_busy_statement s))
+        stmts)
+    very_busy_expressions
 
 let _ =
   match Sys.argv with

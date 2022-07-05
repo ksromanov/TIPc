@@ -94,6 +94,33 @@ let eval_binop (op : Anf.binop) (a : sign_lattice) (b : sign_lattice) =
       | Anf.Greater, _, _ -> greater a b
       | Anf.Equal, _, _ -> equal a b)
 
+(* Performs union and join of the states *)
+let join_state_map a b =
+  let result = Hashtbl.copy a in
+  Hashtbl.filter_map_inplace
+    (fun k v -> Option.map (join v) @@ Hashtbl.find_opt b k)
+    result;
+  result
+
+(* Fixed point algorithm more/less generic *)
+let fix_point f
+    (result :
+      (Anf.ident, sign_lattice) Hashtbl.t
+      * (Anf.statement * (Anf.ident, sign_lattice) Hashtbl.t) list) stmts =
+  let rec iter result =
+    let result' =
+      ( Hashtbl.copy (fst result),
+        List.map (fun (s, states) -> (s, Hashtbl.copy states)) (snd result) )
+    in
+    let result'' = f result' stmts in
+    Printf.printf "1\n";
+    if fst result'' <> fst result then
+      let joined = (join_state_map (fst result) (fst result''), snd result) in
+      iter joined
+    else result
+  in
+  iter result
+
 (* Main entry-point of the pass *)
 let analyze (program : Typed_anf.program) : sign_analysis_t list =
   let open Typed_anf in
@@ -166,7 +193,8 @@ let analyze (program : Typed_anf.program) : sign_analysis_t list =
     | Anf.While (cond, _) when analyze_atomic_expression state_map cond = Zero
       ->
         result (* skipping, since condition does not let us enter the loop!!! *)
-    | Anf.While (_, _) -> failwith "Sign_analysis: unimplemented"
+    | Anf.While (_, body) ->
+        fix_point (List.fold_left (analyze_statement type_map)) result body
     | Anf.Store _ -> result (* pointers are not yet considered! *)
     | Anf.DirectRecordWrite _ -> result (* unimplemented *)
     | Anf.Block body -> List.fold_left (analyze_statement type_map) result body
