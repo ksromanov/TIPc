@@ -12,13 +12,6 @@ module S_expressions = struct
     Format.fprintf fmt "%s" @@ [%show: Anf.complex_expression list] (elements s)
 end
 
-(* Remove all expressions, containing specific variable *)
-let filter_out_variable id =
-  S_expressions.filter (fun expr ->
-      match expr with
-      | Binop (Id a, _, Id b) when id = a || id = b -> true
-      | _ -> false)
-
 (* Resulting type of the expression *)
 type payload = S_expressions.t [@@deriving show]
 
@@ -81,11 +74,12 @@ let analyze_function
       Typed_anf.ret_expr : Anf.atomic_expression;
       _;
     } : func =
+  (* Remove all expressions, containing specific variable *)
   let remove_id id =
     S_expressions.filter (fun expr ->
         match expr with
-        | Binop (Id a, _, Id b) when id = a || id = b -> true
-        | _ -> false)
+        | Binop (Id a, _, Id b) when id = a || id = b -> false
+        | _ -> true)
   in
 
   (* We deal only with complex expressions. *)
@@ -111,7 +105,6 @@ let analyze_function
         ( S_expressions.inter thn_state els_state,
           If (cond, thn, els, previous_state) )
     | While (cond, body, _) ->
-        (* FIXME: add fixpoint *)
         let state, body =
           fix_point (List.fold_left_map analyze_statement) previous_state body
         in
