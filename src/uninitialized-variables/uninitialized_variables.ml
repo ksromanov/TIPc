@@ -92,7 +92,9 @@ let analyze_function
           cond @ then_uninitialized_vars @ else_uninitialized_vars )
     | Anf.If (cond, thn, None) ->
         let cond = Option.to_list @@ analyze_atomic_expression state cond in
-        let state, uninitialized_vars = analyze_statement state thn in
+        let _, uninitialized_vars =
+          analyze_statement (Hashtbl.copy state) thn
+        in
         (state, cond @ uninitialized_vars)
     | Anf.While (cond, body) ->
         (state, []) (* we are not working with pointers here *)
