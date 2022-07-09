@@ -46,7 +46,11 @@ let parse filename =
         (fun s ->
           Printf.printf "%s\n" (Very_busy_expressions.show_busy_statement s))
         stmts)
-    very_busy_expressions
+    very_busy_expressions;
+  let (*uninitialized_variables*) _ =
+    Uninitialized_variables.analyze typed_anf_program
+  in
+  ()
 
 let _ =
   match Sys.argv with
