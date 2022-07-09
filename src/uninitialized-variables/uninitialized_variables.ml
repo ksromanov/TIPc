@@ -97,7 +97,14 @@ let analyze_function
         in
         (state, cond @ uninitialized_vars)
     | Anf.While (cond, body) ->
-        (state, []) (* we are not working with pointers here *)
+        (* In this analysis we do not need to look for a fix point!
+           And we do not update the state, since the loop may be not entered *)
+        let cond = Option.to_list @@ analyze_atomic_expression state cond in
+        let state, uninitialized_vars =
+          List.fold_left_map analyze_statement (Hashtbl.copy state) body
+        in
+        ( state,
+          List.sort_uniq compare @@ List.concat (cond :: uninitialized_vars) )
     | Anf.Store _ as stmt ->
         (state, []) (* we are not working with pointers here *)
     | Anf.DirectRecordWrite _ ->
