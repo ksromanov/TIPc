@@ -47,10 +47,11 @@ let parse filename =
           Printf.printf "%s\n" (Very_busy_expressions.show_busy_statement s))
         stmts)
     very_busy_expressions;
-  let (*uninitialized_variables*) _ =
+  let uninitialized_variables =
     Uninitialized_variables.analyze typed_anf_program
   in
-  ()
+  Printf.printf "Uninitialized variables:\n%s\n"
+    (Uninitialized_variables.show_result uninitialized_variables)
 
 let _ =
   match Sys.argv with

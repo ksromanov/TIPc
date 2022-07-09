@@ -19,7 +19,8 @@ let join_maps a b =
 
 (* Check if the variables are in state, if not return the name of the variable(s) *)
 let analyze_atomic_expression state = function
-  | Anf.Id (Anf.Ident var) -> Some var
+  | Anf.Id (Anf.Ident var) -> (
+      match Hashtbl.find state var with Bottom -> Some var | Top -> None)
   | _ -> None
 
 let analyze_complex_expression state =
@@ -93,7 +94,8 @@ let analyze_function
         let cond = Option.to_list @@ analyze_atomic_expression state cond in
         let state, uninitialized_vars = analyze_statement state thn in
         (state, cond @ uninitialized_vars)
-    | Anf.While (cond, body) -> failwith "loop is not implemented yet"
+    | Anf.While (cond, body) ->
+        (state, []) (* we are not working with pointers here *)
     | Anf.Store _ as stmt ->
         (state, []) (* we are not working with pointers here *)
     | Anf.DirectRecordWrite _ ->
@@ -114,7 +116,7 @@ let analyze_function
     List.sort_uniq compare
     @@ List.concat (ret_unused_variable :: uninitialized_vars) )
 
-type result = ((string * string list) list[@deriving show])
+type result = (string * string list) list [@@deriving show]
 
 let analyze (program : Typed_anf.program) : result =
   List.map analyze_function program
