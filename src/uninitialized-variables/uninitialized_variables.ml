@@ -48,7 +48,6 @@ let analyze_complex_expression state =
 let analyze_function
     {
       Typed_anf.name : string;
-      Typed_anf.args : (Anf.argument * Typed_anf.entityType) list;
       Typed_anf.var_blocks : (string * Typed_anf.entityType) list list;
       Typed_anf.stmts : Anf.statement list;
       Typed_anf.ret_expr : Anf.atomic_expression;
@@ -105,8 +104,7 @@ let analyze_function
         in
         ( state,
           List.sort_uniq compare @@ List.concat (cond :: uninitialized_vars) )
-    | Anf.Store _ as stmt ->
-        (state, []) (* we are not working with pointers here *)
+    | Anf.Store _ -> (state, []) (* we are not working with pointers here *)
     | Anf.DirectRecordWrite _ ->
         (state, []) (* we are not working with pointers here *)
     | Anf.Block body ->
