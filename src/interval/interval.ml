@@ -28,12 +28,13 @@ let join a b =
   | Interval a, Interval b -> Interval (join_intervals a b)
 
 module VarIntervalHashtbl = struct
-  type t = (string, interval_lattice_t) Hashtbl.t
+  type t = (Anf.ident, interval_lattice_t) Hashtbl.t
 
   let pp ppf values =
     Hashtbl.iter
       (fun key value ->
-        Format.fprintf ppf "@[<1>%s: %s@]@." key (show_interval_lattice_t value))
+        Format.fprintf ppf "@[<1>%s: %s@]@." (Anf.show_ident key)
+          (show_interval_lattice_t value))
       values
 
   let join
@@ -100,9 +101,16 @@ let analyze_function
       Typed_anf.ret_expr : Anf.atomic_expression;
       _;
     } : unit =
+  let analyze_expression expr : interval_lattice_t =
+    failwith "analyze_expression unimplemented"
+  in
   let rec analyze_statement previous_state = function
     (* remove all expressions, which contain the id *)
-    | Assignment (id, expr, _) -> failwith "Interval: unimplemented"
+    | Assignment (id, expr, _) ->
+        let expr_interval = analyze_expression expr in
+        let state = Hashtbl.copy previous_state in
+        Hashtbl.replace state id expr_interval;
+        (state, Assignment (id, expr, state))
     | Output (atomic_expr, _) ->
         (previous_state, Output (atomic_expr, Hashtbl.copy previous_state))
     | Error (atomic_expr, _) ->
