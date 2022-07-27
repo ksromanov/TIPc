@@ -52,8 +52,9 @@ let parse filename =
   in
   Printf.printf "Uninitialized variables:\n%s\n"
     (Uninitialized_variables.show_result uninitialized_variables);
-  let _ = Interval.analyze typed_anf_program in
-  ()
+  let interval_analysis_results = Interval.analyze typed_anf_program in
+  Printf.printf "Interval analysis:\n%s\n"
+    (Interval.show_interval_analysis_result_t interval_analysis_results)
 
 let _ =
   match Sys.argv with

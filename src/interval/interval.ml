@@ -1,6 +1,17 @@
 (* Interval analysis using widening and narrowing, without delta operator. *)
 type value = Value of int | Neg_infty | Pos_infty [@@deriving show]
 
+exception Invalid_interval_binop
+
+(* Some of the operations are prohibited, like Neg_inf + Pos_inf,
+   we are going to throw an exception and handle it with Bottom *)
+let ( +! ) a b =
+  match (a, b) with
+  | Neg_infty, Pos_infty | Pos_infty, Neg_infty -> raise Invalid_interval_binop
+  | Neg_infty, _ | _, Neg_infty -> Neg_infty
+  | Pos_infty, _ | _, Pos_infty -> Pos_infty
+  | Value a, Value b -> Value (a + b)
+
 let less = function
   | _, Neg_infty -> false
   | Neg_infty, _ -> true
@@ -97,7 +108,7 @@ let analyze_expression state =
     | _, Bottom -> fun _ -> Bottom
     | Interval (a1, a2), Interval (b1, b2) -> (
         function
-        | Anf.Plus -> failwith "unimplemented"
+        | Anf.Plus -> Interval (a1 +! b1, a2 +! b2)
         | Anf.Minus | Anf.Times | Anf.Div | Anf.Greater | Anf.Equal ->
             failwith "bin op unimplemented")
   in
@@ -135,7 +146,7 @@ let analyze_function
       Typed_anf.stmts : Anf.statement list;
       Typed_anf.ret_expr : Anf.atomic_expression;
       _;
-    } : unit =
+    } =
   let rec analyze_statement previous_state = function
     (* remove all expressions, which contain the id *)
     | Assignment (id, expr, _) ->
@@ -170,8 +181,14 @@ let analyze_function
         (state, Block body)
   in
   let stmts = List.map (preset_statement (fun () -> Hashtbl.create 10)) stmts in
-  let _ = List.fold_left_map analyze_statement (Hashtbl.create 10) stmts in
-  ()
+  let _, stmts =
+    List.fold_left_map analyze_statement (Hashtbl.create 10) stmts
+  in
+  (name, stmts)
+
+type interval_analysis_result_t = (string * statement list) list
+[@@deriving show]
 
 (* Main entry-point of the pass *)
-let analyze (program : Typed_anf.program) = List.map analyze_function program
+let analyze (program : Typed_anf.program) : interval_analysis_result_t =
+  List.map analyze_function program
