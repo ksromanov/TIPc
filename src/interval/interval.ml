@@ -90,6 +90,41 @@ let rec preset_statement (payload : unit -> payload) = function
       DirectRecordWrite (r, field, expr, payload ())
   | Anf.Block body -> Block (List.map (preset_statement payload) body)
 
+let analyze_expression state =
+  let analyze_binop a b =
+    match (a, b) with
+    | Bottom, _ -> fun _ -> Bottom
+    | _, Bottom -> fun _ -> Bottom
+    | Interval (a1, a2), Interval (b1, b2) -> (
+        function
+        | Anf.Plus -> failwith "unimplemented"
+        | Anf.Minus | Anf.Times | Anf.Div | Anf.Greater | Anf.Equal ->
+            failwith "bin op unimplemented")
+  in
+  let analyze_atomic_expression state = function
+    | Anf.Int i -> Interval (Value i, Value i)
+    | Anf.Id id -> Option.value (Hashtbl.find_opt state id) ~default:Bottom
+    | Anf.Null -> top
+  in
+  let analyze_complex_expression state = function
+    | Anf.Binop (a, op, b) ->
+        analyze_binop
+          (analyze_atomic_expression state a)
+          (analyze_atomic_expression state b)
+          op
+    | Anf.Input -> top
+    | Anf.Apply _ -> top
+    | Anf.ComputedApply _ -> top
+    | Anf.Alloc _ -> Bottom
+    | Anf.Reference _ -> Bottom
+    | Anf.DeReference _ -> top
+    | Anf.Record _ -> Bottom
+    | Anf.FieldRead _ -> top
+  in
+  function
+  | Anf.Atomic expr -> analyze_atomic_expression state expr
+  | Anf.Complex expr -> analyze_complex_expression state expr
+
 (* Create an approximation to currently available expressions
    without an account for pointers/records. *)
 let analyze_function
@@ -101,14 +136,11 @@ let analyze_function
       Typed_anf.ret_expr : Anf.atomic_expression;
       _;
     } : unit =
-  let analyze_expression expr : interval_lattice_t =
-    failwith "analyze_expression unimplemented"
-  in
   let rec analyze_statement previous_state = function
     (* remove all expressions, which contain the id *)
     | Assignment (id, expr, _) ->
-        let expr_interval = analyze_expression expr in
         let state = Hashtbl.copy previous_state in
+        let expr_interval = analyze_expression state expr in
         Hashtbl.replace state id expr_interval;
         (state, Assignment (id, expr, state))
     | Output (atomic_expr, _) ->
