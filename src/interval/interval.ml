@@ -12,6 +12,15 @@ let ( +! ) a b =
   | Pos_infty, _ | _, Pos_infty -> Pos_infty
   | Value a, Value b -> Value (a + b)
 
+let ( -! ) a b =
+  match (a, b) with
+  | Neg_infty, Neg_infty | Pos_infty, Pos_infty -> raise Invalid_interval_binop
+  | Neg_infty, _ | _, Pos_infty -> Neg_infty
+  | Pos_infty, _ | _, Neg_infty -> Pos_infty
+  | Value a, Value b -> Value (a - b)
+
+let equal a b = match (a, b) with Value a, Value b -> a = b | _ -> false
+
 let less = function
   | _, Neg_infty -> false
   | Neg_infty, _ -> true
@@ -109,8 +118,14 @@ let analyze_expression state =
     | Interval (a1, a2), Interval (b1, b2) -> (
         function
         | Anf.Plus -> Interval (a1 +! b1, a2 +! b2)
-        | Anf.Minus | Anf.Times | Anf.Div | Anf.Greater | Anf.Equal ->
-            failwith "bin op unimplemented")
+        | Anf.Minus -> Interval (a1 -! b2, a2 -! b1)
+        | Anf.Times | Anf.Div | Anf.Greater -> failwith "bin op unimplemented"
+        | Anf.Equal ->
+            if equal a1 b1 && equal a2 b2 && equal a1 a2 then
+              Interval (Value 1, Value 1)
+            else if less (a2, b1) || less (b2, a1) then
+              Interval (Value 0, Value 0)
+            else Interval (Value 0, Value 1))
   in
   let analyze_atomic_expression state = function
     | Anf.Int i -> Interval (Value i, Value i)
