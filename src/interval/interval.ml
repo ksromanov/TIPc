@@ -116,16 +116,21 @@ let analyze_expression state =
     | Bottom, _ -> fun _ -> Bottom
     | _, Bottom -> fun _ -> Bottom
     | Interval (a1, a2), Interval (b1, b2) -> (
+        let true_ = Interval (Value 1, Value 1)
+        and false_ = Interval (Value 0, Value 0)
+        and undef = Interval (Value 0, Value 1) in
         function
         | Anf.Plus -> Interval (a1 +! b1, a2 +! b2)
         | Anf.Minus -> Interval (a1 -! b2, a2 -! b1)
-        | Anf.Times | Anf.Div | Anf.Greater -> failwith "bin op unimplemented"
+        | Anf.Times | Anf.Div -> failwith "bin op unimplemented"
+        | Anf.Greater ->
+            if less (b2, a1) then true_
+            else if less (a2, b1) then false_
+            else undef
         | Anf.Equal ->
-            if equal a1 b1 && equal a2 b2 && equal a1 a2 then
-              Interval (Value 1, Value 1)
-            else if less (a2, b1) || less (b2, a1) then
-              Interval (Value 0, Value 0)
-            else Interval (Value 0, Value 1))
+            if equal a1 b1 && equal a2 b2 && equal a1 a2 then true_
+            else if less (a2, b1) || less (b2, a1) then false_
+            else undef)
   in
   let analyze_atomic_expression state = function
     | Anf.Int i -> Interval (Value i, Value i)
