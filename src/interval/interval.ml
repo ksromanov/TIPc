@@ -163,7 +163,9 @@ let analyze_function
           analyze_statement (Hashtbl.copy previous_state) thn
         in
         match els with
-        | None -> (thn_state, If (cond, thn, None, Hashtbl.copy previous_state))
+        | None ->
+            ( join_states thn_state previous_state,
+              If (cond, thn, None, Hashtbl.copy previous_state) )
         | Some els ->
             let els_state, els_result =
               analyze_statement (Hashtbl.copy previous_state) els
