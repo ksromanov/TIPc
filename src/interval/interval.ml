@@ -28,6 +28,19 @@ let less = function
   | _, Pos_infty -> true
   | Value a, Value b -> a < b
 
+let ( *! ) a b =
+  let multiply_by_pos_infty : int -> value = function
+    | n when n < 0 -> Neg_infty
+    | n when n > 0 -> Pos_infty
+    | _ (* n == 0 *) -> Value 0
+  in
+  match (a, b) with
+  | Pos_infty, Pos_infty | Neg_infty, Neg_infty -> Pos_infty
+  | Neg_infty, Pos_infty | Pos_infty, Neg_infty -> Neg_infty
+  | Pos_infty, Value n | Value n, Pos_infty -> multiply_by_pos_infty n
+  | Neg_infty, Value n | Value n, Neg_infty -> multiply_by_pos_infty (-n)
+  | Value a, Value b -> Value (a * b)
+
 type interval = value * value [@@deriving show]
 type interval_lattice_t = Bottom | Interval of interval [@@deriving show]
 
@@ -122,7 +135,17 @@ let analyze_expression state =
         function
         | Anf.Plus -> Interval (a1 +! b1, a2 +! b2)
         | Anf.Minus -> Interval (a1 -! b2, a2 -! b1)
-        | Anf.Times | Anf.Div -> failwith "bin op unimplemented"
+        | Anf.Times ->
+            let cross_products =
+              List.flatten
+              @@ List.map (fun b -> List.map (( *! ) b) [ a1; a2 ]) [ b1; b2 ]
+            in
+            let min = List.fold_left min (List.hd cross_products) cross_products
+            and max =
+              List.fold_left max (List.hd cross_products) cross_products
+            in
+            Interval (min, max)
+        | Anf.Div -> failwith "bin op unimplemented"
         | Anf.Greater ->
             if less (b2, a1) then true_
             else if less (a2, b1) then false_
