@@ -1,6 +1,10 @@
 (* Interval analysis using widening and narrowing, without delta operator. *)
 type value = Value of int | Neg_infty | Pos_infty [@@deriving show]
 
+(* some handy special values *)
+let zero = Value 0
+let one = Value 1
+
 exception Invalid_interval_binop
 
 (* Some of the operations are prohibited, like Neg_inf + Pos_inf,
@@ -42,7 +46,6 @@ let ( *! ) a b =
   | Value a, Value b -> Value (a * b)
 
 let ( /! ) a b =
-  let zero = Value 0 in
   let positive_b = less (zero, b) in
   match (a, b) with
   | Pos_infty, Pos_infty | Neg_infty, Neg_infty -> Pos_infty
@@ -54,6 +57,11 @@ let ( /! ) a b =
 
 type interval = value * value [@@deriving show]
 type interval_lattice_t = Bottom | Interval of interval [@@deriving show]
+
+(* handy boolean values *)
+let true_ = Interval (one, one)
+let false_ = Interval (zero, zero)
+let undef = Interval (zero, one)
 
 (* Top is encoded as an interval to avoid duplication *)
 let top = Interval (Neg_infty, Pos_infty)
@@ -140,9 +148,6 @@ let analyze_expression state =
     | Bottom, _ -> fun _ -> Bottom
     | _, Bottom -> fun _ -> Bottom
     | Interval (a1, a2), Interval (b1, b2) -> (
-        let true_ = Interval (Value 1, Value 1)
-        and false_ = Interval (Value 0, Value 0)
-        and undef = Interval (Value 0, Value 1) in
         function
         | Anf.Plus -> Interval (a1 +! b1, a2 +! b2)
         | Anf.Minus -> Interval (a1 -! b2, a2 -! b1)
@@ -156,7 +161,9 @@ let analyze_expression state =
               List.fold_left max (List.hd cross_products) cross_products
             in
             Interval (min, max)
-        | Anf.Div -> failwith "bin op unimplemented"
+        | Anf.Div ->
+            if less (b1, zero) && less (zero, b2) then top
+            else failwith "bin op unimplemented"
         | Anf.Greater ->
             if less (b2, a1) then true_
             else if less (a2, b1) then false_
