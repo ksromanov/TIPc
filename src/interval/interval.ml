@@ -162,8 +162,19 @@ let analyze_expression state =
             in
             Interval (min, max)
         | Anf.Div ->
-            if less (b1, zero) && less (zero, b2) then top
-            else failwith "bin op unimplemented"
+            let positive x = less (zero, x) and negative x = less (x, zero) in
+            if (positive b1 && positive b2) || (negative b1 && negative b2) then
+              let cross_products =
+                List.flatten
+                @@ List.map (fun b -> List.map (( /! ) b) [ a1; a2 ]) [ b1; b2 ]
+              in
+              let min =
+                List.fold_left min (List.hd cross_products) cross_products
+              and max =
+                List.fold_left max (List.hd cross_products) cross_products
+              in
+              Interval (min, max)
+            else top
         | Anf.Greater ->
             if less (b2, a1) then true_
             else if less (a2, b1) then false_
