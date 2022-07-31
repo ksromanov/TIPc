@@ -41,6 +41,17 @@ let ( *! ) a b =
   | Neg_infty, Value n | Value n, Neg_infty -> multiply_by_pos_infty (-n)
   | Value a, Value b -> Value (a * b)
 
+let ( /! ) a b =
+  let zero = Value 0 in
+  let positive_b = less (zero, b) in
+  match (a, b) with
+  | Pos_infty, Pos_infty | Neg_infty, Neg_infty -> Pos_infty
+  | Pos_infty, Neg_infty | Neg_infty, Pos_infty -> Neg_infty
+  | Value _, Pos_infty | Value _, Neg_infty -> zero
+  | Pos_infty, Value b -> if positive_b then Pos_infty else Neg_infty
+  | Neg_infty, Value b -> if positive_b then Neg_infty else Pos_infty
+  | Value a, Value b -> Value (a / b)
+
 type interval = value * value [@@deriving show]
 type interval_lattice_t = Bottom | Interval of interval [@@deriving show]
 
