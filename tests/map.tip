@@ -1,0 +1,11 @@
+map(f,z) {
+  var r;
+  
+  r = f(z);
+
+  return r;
+}
+
+main() {
+  return 1;
+}

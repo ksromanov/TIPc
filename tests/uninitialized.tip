@@ -1,0 +1,12 @@
+main() {
+    var x, y, z;
+    z = 1;
+
+    if(z) {
+        y = 8;
+    }
+
+    z = y;
+
+    return x + y;
+}

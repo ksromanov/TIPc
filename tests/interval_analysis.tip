@@ -1,0 +1,21 @@
+main() {
+    var x, y, z;
+    x = 3;
+    z = 1 + 2;
+
+    y = x + z;
+
+    if(z) {
+        y = 8;
+
+        z = z + 3;
+
+        if( 3 > z) {
+            y = 10;
+        }
+    }
+
+    z = y;
+
+    return x + y;
+}

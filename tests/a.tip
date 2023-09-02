@@ -1,0 +1,6 @@
+main ()
+{
+var z;
+z = 3;
+return 8 + z;
+}
